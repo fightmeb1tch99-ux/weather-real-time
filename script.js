@@ -34,27 +34,25 @@ function updateUI(data) {
 
 function setAnimation(code) {
     weatherIcon.innerHTML = '';
+    document.body.className = ''; // Clear previous classes
     
-    // Simple weather code mapping
-    // 113: Sunny, 116: Partly Cloudy, 119: Cloudy, 122: Overcast
-    // 263, 266, 293, 296, 299, 302, 305, 308: Rain
-    // 386, 389: Storm
-    // 227, 230, 323, 326, 329, 332, 335, 338: Snow
-
     const c = parseInt(code);
 
     if (c === 113) {
         // Sunny
+        document.body.classList.add('bg-sunny');
         const sun = document.createElement('div');
         sun.className = 'sun';
         weatherIcon.appendChild(sun);
     } else if (c === 116 || c === 119 || c === 122) {
         // Cloudy
+        document.body.classList.add('bg-cloudy');
         const cloud = document.createElement('div');
         cloud.className = 'cloud';
         weatherIcon.appendChild(cloud);
     } else if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) {
         // Rain
+        document.body.classList.add('bg-rainy');
         const cloud = document.createElement('div');
         cloud.className = 'cloud';
         weatherIcon.appendChild(cloud);
@@ -67,6 +65,7 @@ function setAnimation(code) {
         }
     } else if ([227, 230, 323, 326, 329, 332, 335, 338].includes(c)) {
         // Snow
+        document.body.classList.add('bg-snowy');
         const cloud = document.createElement('div');
         cloud.className = 'cloud';
         weatherIcon.appendChild(cloud);
@@ -79,6 +78,7 @@ function setAnimation(code) {
         }
     } else if ([386, 389].includes(c)) {
         // Storm
+        document.body.classList.add('bg-stormy');
         const cloud = document.createElement('div');
         cloud.className = 'cloud';
         weatherIcon.appendChild(cloud);
@@ -87,6 +87,7 @@ function setAnimation(code) {
         weatherIcon.appendChild(bolt);
     } else {
         // Default to cloud
+        document.body.classList.add('bg-cloudy');
         const cloud = document.createElement('div');
         cloud.className = 'cloud';
         weatherIcon.appendChild(cloud);
