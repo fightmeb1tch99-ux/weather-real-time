@@ -25,7 +25,8 @@ setInterval(updateClock, 1000);
 updateClock();
 
 // Globe Logic
-let scene, camera, renderer, globe;
+let scene, camera, renderer, globe, weatherGroup;
+let currentGlobeWeatherCode = null;
 
 function createPixelWorldTexture() {
     const canvas = document.createElement('canvas');
@@ -144,7 +145,16 @@ function initGlobe() {
     const shell = new THREE.Mesh(wireGeometry, wireMaterial);
     globe.add(shell);
     
+    // Weather Group for particles
+    weatherGroup = new THREE.Group();
+    globe.add(weatherGroup);
+    
     scene.add(globe);
+    
+    // Initial globe weather if data already exists
+    if (currentGlobeWeatherCode) {
+        updateGlobeWeather(currentGlobeWeatherCode);
+    }
 
     // Stars
     const particlesGeometry = new THREE.BufferGeometry();
@@ -360,6 +370,7 @@ function updateUI(data) {
     setAnimation(code);
     updateBackgroundAnimations(code, windSpeed);
     updateFlag(data);
+    updateGlobeWeather(code);
     
     // Update sounds
     const c = parseInt(code);
@@ -367,6 +378,78 @@ function updateUI(data) {
     else if ([386, 389].includes(c)) playWeatherSound('storm');
     else if (windSpeed > 10) playWeatherSound('wind');
     else stopSound();
+}
+
+function updateGlobeWeather(code) {
+    currentGlobeWeatherCode = code;
+    if (!weatherGroup) return;
+    
+    // Clear existing weather
+    while(weatherGroup.children.length > 0) {
+        weatherGroup.remove(weatherGroup.children[0]);
+    }
+    
+    const c = parseInt(code);
+    
+    // Clouds
+    if (c !== 113) {
+        const cloudCount = (c === 116) ? 5 : 15;
+        for(let i=0; i<cloudCount; i++) {
+            const cloudGeo = new THREE.BoxGeometry(0.8, 0.4, 0.4);
+            const cloudMat = new THREE.MeshBasicMaterial({ color: 0xd1d5db, transparent: true, opacity: 0.6 });
+            const cloud = new THREE.Mesh(cloudGeo, cloudMat);
+            
+            const phi = Math.random() * Math.PI * 2;
+            const theta = Math.random() * Math.PI;
+            const r = 5.5 + Math.random() * 0.5;
+            
+            cloud.position.set(
+                r * Math.sin(theta) * Math.cos(phi),
+                r * Math.sin(theta) * Math.sin(phi),
+                r * Math.cos(theta)
+            );
+            cloud.lookAt(0,0,0);
+            weatherGroup.add(cloud);
+        }
+    }
+    
+    // Rain
+    if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) {
+        const rainCount = 200;
+        const rainGeo = new THREE.BufferGeometry();
+        const rainPos = new Float32Array(rainCount * 3);
+        for(let i=0; i<rainCount; i++) {
+            const r = 5.2 + Math.random() * 2;
+            const phi = Math.random() * Math.PI * 2;
+            const theta = Math.random() * Math.PI;
+            rainPos[i*3] = r * Math.sin(theta) * Math.cos(phi);
+            rainPos[i*3+1] = r * Math.sin(theta) * Math.sin(phi);
+            rainPos[i*3+2] = r * Math.cos(theta);
+        }
+        rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+        const rainMat = new THREE.PointsMaterial({ color: 0x60a5fa, size: 0.05 });
+        const rainPoints = new THREE.Points(rainGeo, rainMat);
+        weatherGroup.add(rainPoints);
+    }
+    
+    // Snow
+    if ([227, 230, 323, 326, 329, 332, 335, 338].includes(c)) {
+        const snowCount = 150;
+        const snowGeo = new THREE.BufferGeometry();
+        const snowPos = new Float32Array(snowCount * 3);
+        for(let i=0; i<snowCount; i++) {
+            const r = 5.2 + Math.random() * 2;
+            const phi = Math.random() * Math.PI * 2;
+            const theta = Math.random() * Math.PI;
+            snowPos[i*3] = r * Math.sin(theta) * Math.cos(phi);
+            snowPos[i*3+1] = r * Math.sin(theta) * Math.sin(phi);
+            snowPos[i*3+2] = r * Math.cos(theta);
+        }
+        snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+        const snowMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.07 });
+        const snowPoints = new THREE.Points(snowGeo, snowMat);
+        weatherGroup.add(snowPoints);
+    }
 }
 
 function updateFlag(data) {
