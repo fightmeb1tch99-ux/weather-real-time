@@ -29,32 +29,84 @@ let scene, camera, renderer, globe;
 
 function createPixelWorldTexture() {
     const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 64;
+    canvas.width = 256;
+    canvas.height = 128;
     const ctx = canvas.getContext('2d');
     
-    // Fill ocean
-    ctx.fillStyle = '#1a237e';
-    ctx.fillRect(0, 0, 128, 64);
+    // Fill ocean (deep blue)
+    ctx.fillStyle = '#0d47a1';
+    ctx.fillRect(0, 0, 256, 128);
     
-    // Draw simplified continents (8-bit style)
-    ctx.fillStyle = '#4ade80';
+    // More detailed 8-bit world map (simplified grid representation)
+    const map = [
+        "                                                                ",
+        "                XXXXXXXXXXXXXX                                  ",
+        "             XXXXXXXXXXXXXXXXXXXX                               ",
+        "            XXXXXXXXXXXXXXXXXXXXXX          XXXXXX              ",
+        "           XXXXXXXXXXXXXXXXXXXXXXXX        XXXXXXXX             ",
+        "          XXXXXXXXXXXXXXXXXXXXXXXXXX      XXXXXXXXXX            ",
+        "          XXXXXXXXXXXXXXXXXXXXXXXXXXX    XXXXXXXXXXXX           ",
+        "         XXXXXXXXXXXXXXXXXXXXXXXXXXXXX  XXXXXXXXXXXXXX          ",
+        "    XXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX         ",
+        "   XXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX         ",
+        "  XXXXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX          ",
+        " XXXXXXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX           ",
+        "XXXXXXXXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX            ",
+        "XXXXXXXXXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX             ",
+        "XXXXXXXXXXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX              ",
+        "XXXXXXXXXXXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX               ",
+        " XXXXXXXXXXXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                ",
+        "  XXXXXXXXXXXXXX   XXXXXXXXXXXXXXXXXXXXXXXXXXXX                 ",
+        "   XXXXXXXXXXXX     XXXXXXXXXXXXXXXXXXXXXXXXXX                  ",
+        "    XXXXXXXXXX       XXXXXXXXXXXXXXXXXXXXXXXX                   ",
+        "     XXXXXXXX         XXXXXXXXXXXXXXXXXXXXXX                    ",
+        "      XXXXXX           XXXXXXXXXXXXXXXXXXXX                     ",
+        "       XXXX             XXXXXXXXXXXXXXXXXX                      ",
+        "        XX               XXXXXXXXXXXXXXXX                       ",
+        "                          XXXXXXXXXXXXXX                        ",
+        "                           XXXXXXXXXXXX                         ",
+        "                            XXXXXXXXXX                          ",
+        "                             XXXXXXXX                           ",
+        "                              XXXXXX                            ",
+        "                               XXXX                             ",
+        "                                XX                              ",
+        "                                                                "
+    ];
+
+    ctx.fillStyle = '#4ade80'; // Land color
+    const pixelSize = 4;
     
-    // Americas
-    ctx.fillRect(20, 10, 15, 20); // North
-    ctx.fillRect(25, 30, 10, 25); // South
+    // Draw Americas
+    drawContinent(ctx, 20, 20, [
+        "  XXXXX", " XXXXXX", "XXXXXXX", "XXXXXX ", "XXXXX  ", "XXXX   ", " XXX   ", "  XX   ", "  XXX  ", "  XXXX ", "  XXXXX", "   XXXX", "    XX "
+    ], pixelSize);
+
+    // Draw Eurasia + Africa
+    drawContinent(ctx, 100, 15, [
+        " XXXXXXXXXXXXXXXX", "XXXXXXXXXXXXXXXXX", "XXXXXXXXXXXXXXXXX", "XXXXXXXXXXXXXXXXX", " XXXXXXXXXXXXXXXX", "  XXXXXXXXXXXXXX ", "   XXXXXXXXXXXX  ", "    XXXXXXXXXX   ", "     XXXXXXXX    ", "      XXXXXX     ", "       XXXX      ", "        XX       "
+    ], pixelSize);
     
-    // Eurasia & Africa
-    ctx.fillRect(60, 5, 40, 25);  // Eurasia
-    ctx.fillRect(65, 30, 15, 20); // Africa
-    
-    // Australia
-    ctx.fillRect(100, 40, 10, 8);
-    
-    // Antarctica
-    ctx.fillRect(20, 60, 90, 4);
+    // Draw Africa
+    drawContinent(ctx, 110, 60, [
+        "XXXXXXXX", "XXXXXXXX", " XXXXXXX", "  XXXXX ", "   XXX  ", "    X   "
+    ], pixelSize);
+
+    // Draw Australia
+    drawContinent(ctx, 200, 80, [
+        " XXXX ", "XXXXXX", " XXXX "
+    ], pixelSize);
 
     return new THREE.CanvasTexture(canvas);
+}
+
+function drawContinent(ctx, x, y, data, size) {
+    data.forEach((row, i) => {
+        for (let j = 0; j < row.length; j++) {
+            if (row[j] === 'X') {
+                ctx.fillRect(x + j * size, y + i * size, size, size);
+            }
+        }
+    });
 }
 
 function initGlobe() {
@@ -70,11 +122,10 @@ function initGlobe() {
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestFilter;
 
-    const geometry = new THREE.SphereGeometry(5, 32, 32);
+    const geometry = new THREE.SphereGeometry(5, 64, 64);
     const material = new THREE.MeshBasicMaterial({ 
         map: texture,
-        transparent: true,
-        opacity: 0.9
+        transparent: false
     });
     
     globe = new THREE.Group();
@@ -82,37 +133,72 @@ function initGlobe() {
     const land = new THREE.Mesh(geometry, material);
     globe.add(land);
     
-    // Add a glowing wireframe shell for depth
-    const wireGeometry = new THREE.SphereGeometry(5.1, 16, 16);
+    // Add a subtle glowing wireframe shell
+    const wireGeometry = new THREE.SphereGeometry(5.05, 24, 24);
     const wireMaterial = new THREE.MeshBasicMaterial({ 
         color: 0x4ade80, 
         wireframe: true, 
         transparent: true, 
-        opacity: 0.1 
+        opacity: 0.2 
     });
     const shell = new THREE.Mesh(wireGeometry, wireMaterial);
     globe.add(shell);
     
     scene.add(globe);
 
+    // Stars
     const particlesGeometry = new THREE.BufferGeometry();
-    const particlesCount = 300;
+    const particlesCount = 200;
     const posArray = new Float32Array(particlesCount * 3);
     for(let i=0; i < particlesCount * 3; i++) {
-        posArray[i] = (Math.random() - 0.5) * 25;
+        posArray[i] = (Math.random() - 0.5) * 30;
     }
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    const particlesMaterial = new THREE.PointsMaterial({ size: 0.05, color: 0xffffff });
+    const particlesMaterial = new THREE.PointsMaterial({ size: 0.08, color: 0xffffff });
     const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
     scene.add(particlesMesh);
 
     camera.position.z = 12;
 
+    // Interaction
+    let isDragging = false;
+    let previousMousePosition = { x: 0, y: 0 };
+
+    globeContainer.addEventListener('mousedown', e => isDragging = true);
+    window.addEventListener('mouseup', e => isDragging = false);
+    globeContainer.addEventListener('mousemove', e => {
+        if (isDragging) {
+            const deltaMove = {
+                x: e.offsetX - previousMousePosition.x,
+                y: e.offsetY - previousMousePosition.y
+            };
+            globe.rotation.y += deltaMove.x * 0.01;
+            globe.rotation.x += deltaMove.y * 0.01;
+        }
+        previousMousePosition = { x: e.offsetX, y: e.offsetY };
+    });
+
+    // Touch support
+    globeContainer.addEventListener('touchstart', e => isDragging = true);
+    window.addEventListener('touchend', e => isDragging = false);
+    globeContainer.addEventListener('touchmove', e => {
+        if (isDragging) {
+            const touch = e.touches[0];
+            const deltaMove = {
+                x: touch.clientX - previousMousePosition.x,
+                y: touch.clientY - previousMousePosition.y
+            };
+            globe.rotation.y += deltaMove.x * 0.01;
+            globe.rotation.x += deltaMove.y * 0.01;
+            previousMousePosition = { x: touch.clientX, y: touch.clientY };
+        }
+    });
+
     function animate() {
         requestAnimationFrame(animate);
-        globe.rotation.y += 0.005;
-        globe.rotation.x += 0.001;
-        particlesMesh.rotation.y -= 0.001;
+        if (!isDragging) {
+            globe.rotation.y += 0.003;
+        }
         renderer.render(scene, camera);
     }
     animate();
