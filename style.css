@@ -42,8 +42,94 @@ body::before {
     background-image: 
         linear-gradient(45deg, rgba(255,255,255,0.05) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.05) 75%, transparent 75%, transparent);
     background-size: 8px 8px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.bg-animations {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     z-index: -1;
     pointer-events: none;
+    overflow: hidden;
+}
+
+/* Background Clouds */
+.bg-cloud {
+    position: absolute;
+    width: 80px;
+    height: 40px;
+    background: var(--cloud-color);
+    opacity: 0.6;
+    animation: move-cloud linear infinite;
+}
+
+@keyframes move-cloud {
+    from { left: -100px; }
+    to { left: 100vw; }
+}
+
+/* Background Rain */
+.bg-rain {
+    position: absolute;
+    width: 2px;
+    height: 15px;
+    background: var(--rain-color);
+    opacity: 0.4;
+    animation: fall-rain linear infinite;
+}
+
+@keyframes fall-rain {
+    to { transform: translateY(100vh); }
+}
+
+/* Background Snow */
+.bg-snow {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: var(--snow-color);
+    opacity: 0.8;
+    animation: fall-snow linear infinite;
+}
+
+@keyframes fall-snow {
+    to { transform: translate(50px, 100vh); }
+}
+
+/* Background Wind */
+.bg-wind {
+    position: absolute;
+    width: 40px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.2);
+    animation: move-wind linear infinite;
+}
+
+@keyframes move-wind {
+    from { left: -50px; }
+    to { left: 100vw; }
+}
+
+/* Storm Flash */
+.bg-flash {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    opacity: 0;
+    z-index: -1;
+    animation: storm-flash 5s infinite;
+}
+
+@keyframes storm-flash {
+    0%, 95%, 100% { opacity: 0; }
+    96%, 98% { opacity: 0.3; }
 }
 
 .widget-container {

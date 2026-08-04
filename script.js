@@ -4,6 +4,7 @@ const tempEl = document.getElementById('temp');
 const descEl = document.getElementById('desc');
 const cityInput = document.getElementById('city-input');
 const searchBtn = document.getElementById('search-btn');
+const bgAnimations = document.getElementById('bg-animations');
 
 async function fetchWeather(query = 'Moscow') {
     showLoading();
@@ -51,12 +52,77 @@ function updateUI(data) {
     const temp = current.temp_C;
     const desc = current.lang_ru ? current.lang_ru[0].value : current.weatherDesc[0].value;
     const code = current.weatherCode;
+    const windSpeed = parseInt(current.windspeedKmph);
 
     cityEl.innerText = city;
     tempEl.innerText = `${temp}°C`;
     descEl.innerText = desc;
 
     setAnimation(code);
+    updateBackgroundAnimations(code, windSpeed);
+}
+
+function updateBackgroundAnimations(code, windSpeed) {
+    bgAnimations.innerHTML = '';
+    const c = parseInt(code);
+
+    // Add Clouds
+    if (c !== 113) { // If not clear sky
+        const cloudCount = c === 116 ? 3 : 8;
+        for (let i = 0; i < cloudCount; i++) {
+            const cloud = document.createElement('div');
+            cloud.className = 'bg-cloud';
+            cloud.style.top = `${Math.random() * 60}%`;
+            cloud.style.animationDuration = `${15 + Math.random() * 20}s`;
+            cloud.style.animationDelay = `${-Math.random() * 20}s`;
+            cloud.style.opacity = 0.2 + Math.random() * 0.3;
+            bgAnimations.appendChild(cloud);
+        }
+    }
+
+    // Add Rain
+    if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) {
+        for (let i = 0; i < 50; i++) {
+            const rain = document.createElement('div');
+            rain.className = 'bg-rain';
+            rain.style.left = `${Math.random() * 100}vw`;
+            rain.style.animationDuration = `${0.5 + Math.random() * 0.5}s`;
+            rain.style.animationDelay = `${Math.random()}s`;
+            bgAnimations.appendChild(rain);
+        }
+    }
+
+    // Add Snow
+    if ([227, 230, 323, 326, 329, 332, 335, 338].includes(c)) {
+        for (let i = 0; i < 40; i++) {
+            const snow = document.createElement('div');
+            snow.className = 'bg-snow';
+            snow.style.left = `${Math.random() * 100}vw`;
+            snow.style.animationDuration = `${2 + Math.random() * 3}s`;
+            snow.style.animationDelay = `${Math.random() * 2}s`;
+            bgAnimations.appendChild(snow);
+        }
+    }
+
+    // Add Storm Flash
+    if ([386, 389].includes(c)) {
+        const flash = document.createElement('div');
+        flash.className = 'bg-flash';
+        bgAnimations.appendChild(flash);
+    }
+
+    // Add Wind
+    if (windSpeed > 15) {
+        const windCount = Math.min(Math.floor(windSpeed / 5), 15);
+        for (let i = 0; i < windCount; i++) {
+            const wind = document.createElement('div');
+            wind.className = 'bg-wind';
+            wind.style.top = `${Math.random() * 100}vh`;
+            wind.style.animationDuration = `${1 + Math.random() * 2}s`;
+            wind.style.animationDelay = `${Math.random() * 2}s`;
+            bgAnimations.appendChild(wind);
+        }
+    }
 }
 
 function setAnimation(code) {
