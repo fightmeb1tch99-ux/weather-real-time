@@ -5,16 +5,43 @@ const descEl = document.getElementById('desc');
 const cityInput = document.getElementById('city-input');
 const searchBtn = document.getElementById('search-btn');
 
-async function fetchWeather(city = 'Moscow') {
+async function fetchWeather(query = 'Moscow') {
+    showLoading();
     try {
-        const response = await fetch(`https://wttr.in/${city}?format=j1`);
-        if (!response.ok) throw new Error('City not found');
+        // query can be city name or "lat,lon"
+        const response = await fetch(`https://wttr.in/${query}?format=j1`);
+        if (!response.ok) throw new Error('Weather data not found');
         const data = await response.json();
         updateUI(data);
     } catch (error) {
         cityEl.innerText = 'Ошибка';
-        descEl.innerText = 'Город не найден';
+        descEl.innerText = 'Не удалось загрузить';
         console.error(error);
+    }
+}
+
+function showLoading() {
+    cityEl.innerText = 'Поиск...';
+    tempEl.innerText = '--°C';
+    descEl.innerText = 'Смотрим в небо';
+    weatherIcon.innerHTML = '<div class="cloud" style="animation: pulse 1s infinite"></div>';
+}
+
+function getLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude.toFixed(2);
+                const lon = position.coords.longitude.toFixed(2);
+                fetchWeather(`${lat},${lon}`);
+            },
+            (error) => {
+                console.warn("Geolocation failed, defaulting to Moscow", error);
+                fetchWeather('Moscow');
+            }
+        );
+    } else {
+        fetchWeather('Moscow');
     }
 }
 
@@ -106,5 +133,5 @@ cityInput.addEventListener('keypress', (e) => {
     }
 });
 
-// Initial fetch
-fetchWeather();
+// Initial fetch with auto-location
+getLocation();
