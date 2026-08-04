@@ -5,6 +5,93 @@ const descEl = document.getElementById('desc');
 const cityInput = document.getElementById('city-input');
 const searchBtn = document.getElementById('search-btn');
 const bgAnimations = document.getElementById('bg-animations');
+const soundToggle = document.getElementById('sound-toggle');
+const flagContainer = document.getElementById('flag-container');
+
+// Sound Engine
+let audioCtx = null;
+let soundEnabled = false;
+let currentSound = null;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+
+function playWeatherSound(type) {
+    if (!soundEnabled || !audioCtx) return;
+    
+    stopSound();
+    
+    const bufferSize = 2 * audioCtx.sampleRate;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const output = buffer.getChannelData(0);
+
+    // Simple noise generation for rain/wind
+    for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+    }
+
+    const whiteNoise = audioCtx.createBufferSource();
+    whiteNoise.buffer = buffer;
+    whiteNoise.loop = true;
+
+    const filter = audioCtx.createBiquadFilter();
+    const gainNode = audioCtx.createGain();
+
+    if (type === 'rain') {
+        filter.type = 'lowpass';
+        filter.frequency.value = 400;
+        gainNode.gain.value = 0.15;
+    } else if (type === 'wind') {
+        filter.type = 'lowpass';
+        filter.frequency.value = 200;
+        gainNode.gain.value = 0.1;
+        // Add oscillation to wind
+        const lfo = audioCtx.createOscillator();
+        lfo.frequency.value = 0.5;
+        const lfoGain = audioCtx.createGain();
+        lfoGain.gain.value = 0.05;
+        lfo.connect(lfoGain);
+        lfoGain.connect(gainNode.gain);
+        lfo.start();
+    } else if (type === 'storm') {
+        filter.type = 'lowpass';
+        filter.frequency.value = 300;
+        gainNode.gain.value = 0.2;
+    } else {
+        stopSound();
+        return;
+    }
+
+    whiteNoise.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    whiteNoise.start();
+    currentSound = { source: whiteNoise, gain: gainNode };
+}
+
+function stopSound() {
+    if (currentSound) {
+        currentSound.source.stop();
+        currentSound = null;
+    }
+}
+
+soundToggle.addEventListener('click', () => {
+    initAudio();
+    soundEnabled = !soundEnabled;
+    soundToggle.innerText = soundEnabled ? '🔊' : '🔇';
+    if (!soundEnabled) stopSound();
+    else {
+        // Re-trigger sound based on current weather
+        const desc = descEl.innerText.toLowerCase();
+        if (desc.includes('rain')) playWeatherSound('rain');
+        else if (desc.includes('storm')) playWeatherSound('storm');
+        else playWeatherSound('wind');
+    }
+});
 
 async function fetchWeather(query = 'Moscow') {
     showLoading();
@@ -49,6 +136,7 @@ function getLocation() {
 function updateUI(data) {
     const current = data.current_condition[0];
     const city = data.nearest_area[0].areaName[0].value;
+    const country = data.nearest_area[0].country[0].value;
     const temp = current.temp_C;
     const desc = current.lang_ru ? current.lang_ru[0].value : current.weatherDesc[0].value;
     const code = current.weatherCode;
@@ -60,6 +148,40 @@ function updateUI(data) {
 
     setAnimation(code);
     updateBackgroundAnimations(code, windSpeed);
+    updateFlag(data);
+    
+    // Update sounds
+    const c = parseInt(code);
+    if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) playWeatherSound('rain');
+    else if ([386, 389].includes(c)) playWeatherSound('storm');
+    else if (windSpeed > 10) playWeatherSound('wind');
+    else stopSound();
+}
+
+function updateFlag(data) {
+    flagContainer.innerHTML = '';
+    // wttr.in doesn't always provide ISO code easily, but we can try to get it or use a fallback
+    // For the easter egg, we'll try to find the country and show its flag
+    const country = data.nearest_area[0].country[0].value;
+    
+    // Simple mapping for common countries if ISO is not direct
+    const countryMap = {
+        'Russia': 'ru', 'Russian Federation': 'ru',
+        'USA': 'us', 'United States of America': 'us',
+        'UK': 'gb', 'United Kingdom': 'gb',
+        'Germany': 'de', 'France': 'fr', 'Japan': 'jp',
+        'China': 'cn', 'Kazakhstan': 'kz', 'Ukraine': 'ua',
+        'Belarus': 'by'
+    };
+    
+    let code = countryMap[country] || 'un'; // 'un' for unknown/United Nations
+    
+    const flagImg = document.createElement('img');
+    flagImg.src = `https://flagcdn.com/w80/${code.toLowerCase()}.png`;
+    flagImg.className = 'pixel-flag';
+    flagImg.alt = country;
+    flagImg.title = `Страна: ${country}`;
+    flagContainer.appendChild(flagImg);
 }
 
 function updateBackgroundAnimations(code, windSpeed) {
