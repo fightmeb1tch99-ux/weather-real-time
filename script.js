@@ -38,7 +38,7 @@ function createPixelWorldTexture() {
     ctx.fillStyle = '#0d47a1';
     ctx.fillRect(0, 0, 256, 128);
     
-    // More detailed 8-bit world map (simplified grid representation)
+    // 8-bit world map data (64x32 grid)
     const map = [
         "                                                                ",
         "                XXXXXXXXXXXXXX                                  ",
@@ -77,38 +77,21 @@ function createPixelWorldTexture() {
     ctx.fillStyle = '#4ade80'; // Land color
     const pixelSize = 4;
     
-    // Draw Americas
-    drawContinent(ctx, 20, 20, [
-        "  XXXXX", " XXXXXX", "XXXXXXX", "XXXXXX ", "XXXXX  ", "XXXX   ", " XXX   ", "  XX   ", "  XXX  ", "  XXXX ", "  XXXXX", "   XXXX", "    XX "
-    ], pixelSize);
-
-    // Draw Eurasia + Africa
-    drawContinent(ctx, 100, 15, [
-        " XXXXXXXXXXXXXXXX", "XXXXXXXXXXXXXXXXX", "XXXXXXXXXXXXXXXXX", "XXXXXXXXXXXXXXXXX", " XXXXXXXXXXXXXXXX", "  XXXXXXXXXXXXXX ", "   XXXXXXXXXXXX  ", "    XXXXXXXXXX   ", "     XXXXXXXX    ", "      XXXXXX     ", "       XXXX      ", "        XX       "
-    ], pixelSize);
-    
-    // Draw Africa
-    drawContinent(ctx, 110, 60, [
-        "XXXXXXXX", "XXXXXXXX", " XXXXXXX", "  XXXXX ", "   XXX  ", "    X   "
-    ], pixelSize);
-
-    // Draw Australia
-    drawContinent(ctx, 200, 80, [
-        " XXXX ", "XXXXXX", " XXXX "
-    ], pixelSize);
-
-    return new THREE.CanvasTexture(canvas);
-}
-
-function drawContinent(ctx, x, y, data, size) {
-    data.forEach((row, i) => {
-        for (let j = 0; j < row.length; j++) {
-            if (row[j] === 'X') {
-                ctx.fillRect(x + j * size, y + i * size, size, size);
+    // Draw the map from the array
+    map.forEach((row, y) => {
+        for (let x = 0; x < row.length; x++) {
+            if (row[x] === 'X') {
+                ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
             }
         }
     });
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
 }
+
+
 
 function initGlobe() {
     if (renderer) return;
@@ -126,7 +109,8 @@ function initGlobe() {
     const geometry = new THREE.SphereGeometry(5, 64, 64);
     const material = new THREE.MeshBasicMaterial({ 
         map: texture,
-        transparent: false
+        transparent: false,
+        side: THREE.FrontSide
     });
     
     globe = new THREE.Group();
@@ -135,12 +119,12 @@ function initGlobe() {
     globe.add(land);
     
     // Add a subtle glowing wireframe shell
-    const wireGeometry = new THREE.SphereGeometry(5.05, 24, 24);
+    const wireGeometry = new THREE.SphereGeometry(5.1, 24, 24);
     const wireMaterial = new THREE.MeshBasicMaterial({ 
         color: 0x4ade80, 
         wireframe: true, 
         transparent: true, 
-        opacity: 0.2 
+        opacity: 0.15 
     });
     const shell = new THREE.Mesh(wireGeometry, wireMaterial);
     globe.add(shell);
