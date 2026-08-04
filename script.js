@@ -164,14 +164,19 @@ function updateFlag(data) {
     // For the easter egg, we'll try to find the country and show its flag
     const country = data.nearest_area[0].country[0].value;
     
-    // Simple mapping for common countries if ISO is not direct
+    // Simple mapping for common countries
     const countryMap = {
         'Russia': 'ru', 'Russian Federation': 'ru',
         'USA': 'us', 'United States of America': 'us',
         'UK': 'gb', 'United Kingdom': 'gb',
         'Germany': 'de', 'France': 'fr', 'Japan': 'jp',
         'China': 'cn', 'Kazakhstan': 'kz', 'Ukraine': 'ua',
-        'Belarus': 'by'
+        'Belarus': 'by', 'Uzbekistan': 'uz', 'Armenia': 'am',
+        'Georgia': 'ge', 'Azerbaijan': 'az', 'Kyrgyzstan': 'kg',
+        'Tajikistan': 'tj', 'Turkmenistan': 'tm', 'Moldova': 'md',
+        'Latvia': 'lv', 'Lithuania': 'lt', 'Estonia': 'ee',
+        'Poland': 'pl', 'Turkey': 'tr', 'Israel': 'il',
+        'Italy': 'it', 'Spain': 'es', 'Canada': 'ca', 'Brazil': 'br'
     };
     
     let code = countryMap[country] || 'un'; // 'un' for unknown/United Nations
