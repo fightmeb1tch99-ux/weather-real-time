@@ -27,40 +27,82 @@ updateClock();
 // Globe Logic
 let scene, camera, renderer, globe;
 
+function createPixelWorldTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    
+    // Fill ocean
+    ctx.fillStyle = '#1a237e';
+    ctx.fillRect(0, 0, 128, 64);
+    
+    // Draw simplified continents (8-bit style)
+    ctx.fillStyle = '#4ade80';
+    
+    // Americas
+    ctx.fillRect(20, 10, 15, 20); // North
+    ctx.fillRect(25, 30, 10, 25); // South
+    
+    // Eurasia & Africa
+    ctx.fillRect(60, 5, 40, 25);  // Eurasia
+    ctx.fillRect(65, 30, 15, 20); // Africa
+    
+    // Australia
+    ctx.fillRect(100, 40, 10, 8);
+    
+    // Antarctica
+    ctx.fillRect(20, 60, 90, 4);
+
+    return new THREE.CanvasTexture(canvas);
+}
+
 function initGlobe() {
-    if (renderer) return; // Already initialized
+    if (renderer) return;
 
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75, globeContainer.clientWidth / globeContainer.clientHeight, 0.1, 1000);
-    renderer = new THREE.WebGLRenderer({ antialias: false });
+    renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
     renderer.setSize(globeContainer.clientWidth, globeContainer.clientHeight);
     globeContainer.appendChild(renderer.domElement);
 
-    // Create a pixelated-style globe
+    const texture = createPixelWorldTexture();
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+
     const geometry = new THREE.SphereGeometry(5, 32, 32);
     const material = new THREE.MeshBasicMaterial({ 
-        color: 0x4ade80, 
-        wireframe: true,
+        map: texture,
         transparent: true,
-        opacity: 0.8
+        opacity: 0.9
     });
-    globe = new THREE.Mesh(geometry, material);
+    
+    globe = new THREE.Group();
+    
+    const land = new THREE.Mesh(geometry, material);
+    globe.add(land);
+    
+    // Add a glowing wireframe shell for depth
+    const wireGeometry = new THREE.SphereGeometry(5.1, 16, 16);
+    const wireMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x4ade80, 
+        wireframe: true, 
+        transparent: true, 
+        opacity: 0.1 
+    });
+    const shell = new THREE.Mesh(wireGeometry, wireMaterial);
+    globe.add(shell);
+    
     scene.add(globe);
 
-    // Add some "weather" particles around the globe
     const particlesGeometry = new THREE.BufferGeometry();
-    const particlesCount = 500;
+    const particlesCount = 300;
     const posArray = new Float32Array(particlesCount * 3);
-
     for(let i=0; i < particlesCount * 3; i++) {
-        posArray[i] = (Math.random() - 0.5) * 20;
+        posArray[i] = (Math.random() - 0.5) * 25;
     }
-
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    const particlesMaterial = new THREE.PointsMaterial({
-        size: 0.1,
-        color: 0xffffff
-    });
+    const particlesMaterial = new THREE.PointsMaterial({ size: 0.05, color: 0xffffff });
     const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
     scene.add(particlesMesh);
 
@@ -69,7 +111,8 @@ function initGlobe() {
     function animate() {
         requestAnimationFrame(animate);
         globe.rotation.y += 0.005;
-        particlesMesh.rotation.y -= 0.002;
+        globe.rotation.x += 0.001;
+        particlesMesh.rotation.y -= 0.001;
         renderer.render(scene, camera);
     }
     animate();
