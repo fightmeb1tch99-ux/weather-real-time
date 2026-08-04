@@ -14,6 +14,9 @@
 <body>
     <div id="bg-animations" class="bg-animations"></div>
     <div class="widget-container">
+        <div class="header-info">
+            <div id="clock" class="clock">00:00:00</div>
+        </div>
         <div id="weather-icon" class="weather-icon"></div>
         <div class="weather-info">
             <h1 id="city">Загрузка...</h1>
@@ -29,7 +32,20 @@
         </div>
     </div>
     <button id="sound-toggle" class="sound-button">🔇</button>
+    <button id="globe-btn" class="globe-button">🌍</button>
+    
+    <div id="globe-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>Мировой глобус</h2>
+            <div id="globe-container"></div>
+            <p class="modal-hint">Крути глобус, чтобы увидеть мир</p>
+        </div>
+    </div>
+
     <div id="flag-container" class="flag-container"></div>
+    <!-- Three.js for 3D Globe -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

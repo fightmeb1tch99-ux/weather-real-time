@@ -7,6 +7,88 @@ const searchBtn = document.getElementById('search-btn');
 const bgAnimations = document.getElementById('bg-animations');
 const soundToggle = document.getElementById('sound-toggle');
 const flagContainer = document.getElementById('flag-container');
+const clockEl = document.getElementById('clock');
+const globeBtn = document.getElementById('globe-btn');
+const globeModal = document.getElementById('globe-modal');
+const closeModal = document.querySelector('.close-modal');
+const globeContainer = document.getElementById('globe-container');
+
+// Clock Logic
+function updateClock() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    clockEl.innerText = `${hours}:${minutes}:${seconds}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Globe Logic
+let scene, camera, renderer, globe;
+
+function initGlobe() {
+    if (renderer) return; // Already initialized
+
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, globeContainer.clientWidth / globeContainer.clientHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ antialias: false });
+    renderer.setSize(globeContainer.clientWidth, globeContainer.clientHeight);
+    globeContainer.appendChild(renderer.domElement);
+
+    // Create a pixelated-style globe
+    const geometry = new THREE.SphereGeometry(5, 32, 32);
+    const material = new THREE.MeshBasicMaterial({ 
+        color: 0x4ade80, 
+        wireframe: true,
+        transparent: true,
+        opacity: 0.8
+    });
+    globe = new THREE.Mesh(geometry, material);
+    scene.add(globe);
+
+    // Add some "weather" particles around the globe
+    const particlesGeometry = new THREE.BufferGeometry();
+    const particlesCount = 500;
+    const posArray = new Float32Array(particlesCount * 3);
+
+    for(let i=0; i < particlesCount * 3; i++) {
+        posArray[i] = (Math.random() - 0.5) * 20;
+    }
+
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const particlesMaterial = new THREE.PointsMaterial({
+        size: 0.1,
+        color: 0xffffff
+    });
+    const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+    scene.add(particlesMesh);
+
+    camera.position.z = 12;
+
+    function animate() {
+        requestAnimationFrame(animate);
+        globe.rotation.y += 0.005;
+        particlesMesh.rotation.y -= 0.002;
+        renderer.render(scene, camera);
+    }
+    animate();
+}
+
+globeBtn.onclick = () => {
+    globeModal.style.display = "block";
+    setTimeout(initGlobe, 100);
+};
+
+closeModal.onclick = () => {
+    globeModal.style.display = "none";
+};
+
+window.onclick = (event) => {
+    if (event.target == globeModal) {
+        globeModal.style.display = "none";
+    }
+};
 
 // Sound Engine
 let audioCtx = null;
