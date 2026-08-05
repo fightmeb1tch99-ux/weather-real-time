@@ -12,6 +12,7 @@ const globeBtn = document.getElementById('globe-btn');
 const globeModal = document.getElementById('globe-modal');
 const closeModal = document.querySelector('.close-modal');
 const globeContainer = document.getElementById('globe-container');
+const forecastContainer = document.getElementById('forecast-container');
 
 // Clock Logic
 function updateClock() {
@@ -507,6 +508,7 @@ function updateUI(data) {
     setAnimation(code);
     updateBackgroundAnimations(code, windSpeed);
     updateFlag(data);
+    updateForecast(data);
     updateGlobeWeather(code);
     
     const c = parseInt(code);
@@ -686,6 +688,49 @@ function setAnimation(code) {
         cloud.className = 'cloud';
         weatherIcon.appendChild(cloud);
     }
+}
+
+function getWeatherIcon(code) {
+    const c = parseInt(code);
+    if (c === 113) return '☀️';
+    if ([116, 119, 122].includes(c)) return '☁️';
+    if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) return '🌧️';
+    if ([227, 230, 323, 326, 329, 332, 335, 338].includes(c)) return '❄️';
+    if ([386, 389].includes(c)) return '⛈️';
+    return '🌤️';
+}
+
+function updateForecast(data) {
+    forecastContainer.innerHTML = '';
+    const forecast = data.weather;
+    
+    if (!forecast) return;
+    
+    forecast.slice(0, 7).forEach((day, index) => {
+        const date = new Date(day.date);
+        const dayName = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'][date.getDay()];
+        const dayNum = date.getDate();
+        
+        const maxTemp = day.maxtempC;
+        const minTemp = day.mintempC;
+        const weatherCode = day.hourly[0].weatherCode;
+        const weatherDesc = day.hourly[0].weatherDesc[0].value;
+        
+        const forecastDay = document.createElement('div');
+        forecastDay.className = 'forecast-day';
+        
+        const icon = getWeatherIcon(weatherCode);
+        
+        forecastDay.innerHTML = `
+            <div class="forecast-day-name">${dayName} ${dayNum}</div>
+            <div class="forecast-day-icon">${icon}</div>
+            <div class="forecast-day-temp">${Math.round(maxTemp)}°</div>
+            <div class="forecast-day-temp-min">${Math.round(minTemp)}°</div>
+            <div class="forecast-day-desc">${weatherDesc.substring(0, 15)}</div>
+        `;
+        
+        forecastContainer.appendChild(forecastDay);
+    });
 }
 
 function updateFlag(data) {

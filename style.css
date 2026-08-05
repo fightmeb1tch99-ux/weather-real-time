@@ -138,7 +138,9 @@ body::before {
     padding: 20px;
     box-shadow: 10px 10px 0px #000;
     text-align: center;
-    width: 320px;
+    width: 360px;
+    max-height: 90vh;
+    overflow-y: auto;
     image-rendering: pixelated;
 }
 
@@ -198,6 +200,74 @@ body::before {
 .pixel-button:active {
     box-shadow: 0px 0px 0px #000;
     transform: translate(4px, 4px);
+}
+
+.forecast-section {
+    margin-top: 20px;
+    border-top: var(--pixel-size) solid #000;
+    padding-top: 15px;
+}
+
+.forecast-section h3 {
+    font-size: 10px;
+    margin: 0 0 10px 0;
+    color: var(--primary-color);
+    text-align: center;
+}
+
+.forecast-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.forecast-day {
+    background: #333;
+    border: var(--pixel-size) solid #000;
+    padding: 8px;
+    text-align: center;
+    font-size: 7px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.forecast-day:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+}
+
+.forecast-day-name {
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 4px;
+}
+
+.forecast-day-icon {
+    font-size: 16px;
+    margin: 4px 0;
+}
+
+.forecast-day-temp {
+    color: #fff;
+    font-size: 8px;
+    margin: 4px 0;
+}
+
+.forecast-day-temp-min {
+    color: #60a5fa;
+    font-size: 7px;
+}
+
+.forecast-day-temp-max {
+    color: #facc15;
+    font-size: 7px;
+}
+
+.forecast-day-desc {
+    color: #aaa;
+    font-size: 6px;
+    margin-top: 4px;
+    word-wrap: break-word;
 }
 
 .footer {
