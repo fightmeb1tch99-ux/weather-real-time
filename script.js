@@ -24,93 +24,124 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// Globe Logic
-let scene, camera, renderer, globe, weatherGroup;
-let currentGlobeWeatherCode = null;
+// Major cities with coordinates (lat, lon)
+const majorCities = [
+    { name: 'Moscow', lat: 55.75, lon: 37.62 },
+    { name: 'New York', lat: 40.71, lon: -74.01 },
+    { name: 'London', lat: 51.51, lon: -0.13 },
+    { name: 'Tokyo', lat: 35.68, lon: 139.69 },
+    { name: 'Sydney', lat: -33.87, lon: 151.21 },
+    { name: 'Dubai', lat: 25.20, lon: 55.27 },
+    { name: 'Singapore', lat: 1.35, lon: 103.82 },
+    { name: 'Hong Kong', lat: 22.30, lon: 114.18 },
+    { name: 'São Paulo', lat: -23.55, lon: -46.63 },
+    { name: 'Mexico City', lat: 19.43, lon: -99.13 },
+    { name: 'Cairo', lat: 30.04, lon: 31.24 },
+    { name: 'Mumbai', lat: 19.08, lon: 72.88 },
+    { name: 'Bangkok', lat: 13.73, lon: 100.49 },
+    { name: 'Istanbul', lat: 41.01, lon: 28.98 },
+    { name: 'Paris', lat: 48.86, lon: 2.35 }
+];
 
-function createPixelWorldTexture() {
+// Globe Logic
+let scene, camera, renderer, globe, weatherGroup, cityMarkers;
+let currentGlobeWeatherCode = null;
+let cityWeatherData = {};
+
+function latLonToVector3(lat, lon, radius) {
+    const phi = (90 - lat) * Math.PI / 180;
+    const theta = (lon + 180) * Math.PI / 180;
+    
+    const x = -(radius * Math.sin(phi) * Math.cos(theta));
+    const y = radius * Math.cos(phi);
+    const z = radius * Math.sin(phi) * Math.sin(theta);
+    
+    return new THREE.Vector3(x, y, z);
+}
+
+function createDetailedWorldTexture() {
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 128;
+    canvas.width = 512;
+    canvas.height = 256;
     const ctx = canvas.getContext('2d');
     
-    // Fill ocean (deep blue)
-    ctx.fillStyle = '#0d47a1';
-    ctx.fillRect(0, 0, 256, 128);
+    // Ocean background
+    ctx.fillStyle = '#1a4d7a';
+    ctx.fillRect(0, 0, 512, 256);
     
-    // 8-bit world map data (64x32 grid)
-    const map = [
-        "                                                                ",
-        "                XXXXXXXXXXXXXX                                  ",
-        "             XXXXXXXXXXXXXXXXXXXX                               ",
-        "            XXXXXXXXXXXXXXXXXXXXXX          XXXXXX              ",
-        "           XXXXXXXXXXXXXXXXXXXXXXXX        XXXXXXXX             ",
-        "          XXXXXXXXXXXXXXXXXXXXXXXXXX      XXXXXXXXXX            ",
-        "          XXXXXXXXXXXXXXXXXXXXXXXXXXX    XXXXXXXXXXXX           ",
-        "         XXXXXXXXXXXXXXXXXXXXXXXXXXXXX  XXXXXXXXXXXXXX          ",
-        "    XXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX         ",
-        "   XXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX         ",
-        "  XXXXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX          ",
-        " XXXXXXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX           ",
-        "XXXXXXXXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX            ",
-        "XXXXXXXXXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX             ",
-        "XXXXXXXXXXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX              ",
-        "XXXXXXXXXXXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX               ",
-        " XXXXXXXXXXXXXXX  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                ",
-        "  XXXXXXXXXXXXXX   XXXXXXXXXXXXXXXXXXXXXXXXXXXX                 ",
-        "   XXXXXXXXXXXX     XXXXXXXXXXXXXXXXXXXXXXXXXX                  ",
-        "    XXXXXXXXXX       XXXXXXXXXXXXXXXXXXXXXXXX                   ",
-        "     XXXXXXXX         XXXXXXXXXXXXXXXXXXXXXX                    ",
-        "      XXXXXX           XXXXXXXXXXXXXXXXXXXX                     ",
-        "       XXXX             XXXXXXXXXXXXXXXXXX                      ",
-        "        XX               XXXXXXXXXXXXXXXX                       ",
-        "                          XXXXXXXXXXXXXX                        ",
-        "                           XXXXXXXXXXXX                         ",
-        "                            XXXXXXXXXX                          ",
-        "                             XXXXXXXX                           ",
-        "                              XXXXXX                            ",
-        "                               XXXX                             ",
-        "                                XX                              ",
-        "                                                                "
-    ];
-
-    ctx.fillStyle = '#4ade80'; // Land color
-    const pixelSize = 4;
+    // More detailed world map
+    const landColor = '#2d8659';
+    const coastColor = '#3da070';
     
-    // Draw the map from the array
-    map.forEach((row, y) => {
-        for (let x = 0; x < row.length; x++) {
-            if (row[x] === 'X') {
-                ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
-            }
-        }
-    });
-
+    ctx.fillStyle = landColor;
+    
+    // North America
+    ctx.fillRect(40, 50, 80, 100);
+    ctx.fillRect(50, 140, 40, 30);
+    
+    // South America
+    ctx.fillRect(80, 140, 30, 80);
+    
+    // Europe
+    ctx.fillRect(200, 40, 60, 50);
+    
+    // Africa
+    ctx.fillRect(220, 90, 50, 100);
+    
+    // Asia
+    ctx.fillRect(280, 30, 150, 120);
+    
+    // Australia
+    ctx.fillRect(420, 150, 40, 50);
+    
+    // Greenland
+    ctx.fillRect(160, 10, 30, 40);
+    
+    // Add coastlines with lighter color
+    ctx.strokeStyle = coastColor;
+    ctx.lineWidth = 1;
+    
+    // Add grid lines for reference
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i < 512; i += 64) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, 256);
+        ctx.stroke();
+    }
+    for (let i = 0; i < 256; i += 64) {
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(512, i);
+        ctx.stroke();
+    }
+    
     const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
     return texture;
 }
-
-
 
 function initGlobe() {
     if (renderer) return;
 
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75, globeContainer.clientWidth / globeContainer.clientHeight, 0.1, 1000);
-    renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(globeContainer.clientWidth, globeContainer.clientHeight);
+    renderer.setClearColor(0x000000, 0.1);
     globeContainer.appendChild(renderer.domElement);
 
-    const texture = createPixelWorldTexture();
-    texture.magFilter = THREE.NearestFilter;
-    texture.minFilter = THREE.NearestFilter;
+    // Create globe with detailed map
+    const texture = createDetailedWorldTexture();
+    texture.magFilter = THREE.LinearFilter;
+    texture.minFilter = THREE.LinearFilter;
 
-    const geometry = new THREE.SphereGeometry(5, 64, 64);
-    const material = new THREE.MeshBasicMaterial({ 
+    const geometry = new THREE.SphereGeometry(5, 128, 64);
+    const material = new THREE.MeshPhongMaterial({ 
         map: texture,
-        transparent: false,
-        side: THREE.FrontSide
+        emissive: 0x333333,
+        shininess: 5
     });
     
     globe = new THREE.Group();
@@ -118,13 +149,21 @@ function initGlobe() {
     const land = new THREE.Mesh(geometry, material);
     globe.add(land);
     
+    // Add lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 3, 5);
+    scene.add(directionalLight);
+    
     // Add a subtle glowing wireframe shell
-    const wireGeometry = new THREE.SphereGeometry(5.1, 24, 24);
+    const wireGeometry = new THREE.SphereGeometry(5.15, 32, 32);
     const wireMaterial = new THREE.MeshBasicMaterial({ 
         color: 0x4ade80, 
         wireframe: true, 
         transparent: true, 
-        opacity: 0.15 
+        opacity: 0.1 
     });
     const shell = new THREE.Mesh(wireGeometry, wireMaterial);
     globe.add(shell);
@@ -133,26 +172,36 @@ function initGlobe() {
     weatherGroup = new THREE.Group();
     globe.add(weatherGroup);
     
+    // City markers group
+    cityMarkers = new THREE.Group();
+    globe.add(cityMarkers);
+    
     scene.add(globe);
+    
+    // Add city markers
+    addCityMarkers();
     
     // Initial globe weather if data already exists
     if (currentGlobeWeatherCode) {
         updateGlobeWeather(currentGlobeWeatherCode);
     }
 
-    // Stars
+    // Stars background
     const particlesGeometry = new THREE.BufferGeometry();
-    const particlesCount = 200;
+    const particlesCount = 300;
     const posArray = new Float32Array(particlesCount * 3);
     for(let i=0; i < particlesCount * 3; i++) {
-        posArray[i] = (Math.random() - 0.5) * 30;
+        posArray[i] = (Math.random() - 0.5) * 50;
     }
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    const particlesMaterial = new THREE.PointsMaterial({ size: 0.08, color: 0xffffff });
+    const particlesMaterial = new THREE.PointsMaterial({ size: 0.1, color: 0xffffff });
     const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
     scene.add(particlesMesh);
 
     camera.position.z = 12;
+    let currentZoom = 12;
+    const minZoom = 5;
+    const maxZoom = 20;
 
     // Interaction
     let isDragging = false;
@@ -166,10 +215,52 @@ function initGlobe() {
                 x: e.offsetX - previousMousePosition.x,
                 y: e.offsetY - previousMousePosition.y
             };
-            globe.rotation.y += deltaMove.x * 0.01;
-            globe.rotation.x += deltaMove.y * 0.01;
+            velocityY = deltaMove.x * 0.01;
+            velocityX = deltaMove.y * 0.01;
+            globe.rotation.y += velocityY;
+            globe.rotation.x += velocityX;
         }
         previousMousePosition = { x: e.offsetX, y: e.offsetY };
+    });
+
+    // Zoom with mouse wheel
+    globeContainer.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const zoomSpeed = 0.5;
+        if (e.deltaY > 0) {
+            currentZoom = Math.min(currentZoom + zoomSpeed, maxZoom);
+        } else {
+            currentZoom = Math.max(currentZoom - zoomSpeed, minZoom);
+        }
+        camera.position.z = currentZoom;
+    }, { passive: false });
+
+    // Pinch zoom for touch devices
+    let lastDistance = 0;
+    globeContainer.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2) {
+            const touch1 = e.touches[0];
+            const touch2 = e.touches[1];
+            const distance = Math.hypot(
+                touch1.clientX - touch2.clientX,
+                touch1.clientY - touch2.clientY
+            );
+            
+            if (lastDistance > 0) {
+                const zoomSpeed = 0.05;
+                if (distance > lastDistance) {
+                    currentZoom = Math.max(currentZoom - zoomSpeed, minZoom);
+                } else {
+                    currentZoom = Math.min(currentZoom + zoomSpeed, maxZoom);
+                }
+                camera.position.z = currentZoom;
+            }
+            lastDistance = distance;
+        }
+    });
+    
+    globeContainer.addEventListener('touchend', () => {
+        lastDistance = 0;
     });
 
     // Touch support
@@ -188,14 +279,80 @@ function initGlobe() {
         }
     });
 
+    let targetRotationY = 0;
+    let targetRotationX = 0;
+    const rotationDamping = 0.95;
+    let velocityY = 0;
+    let velocityX = 0;
+
     function animate() {
         requestAnimationFrame(animate);
+        
         if (!isDragging) {
-            globe.rotation.y += 0.003;
+            // Auto-rotate slowly
+            targetRotationY += 0.0003;
+            
+            // Smooth damping for inertia
+            velocityY *= rotationDamping;
+            velocityX *= rotationDamping;
+            
+            globe.rotation.y += velocityY + 0.0003;
         }
+        
+        // Update city marker glow
+        cityMarkers.children.forEach((marker, index) => {
+            marker.scale.x = 1 + Math.sin(Date.now() * 0.003 + index) * 0.2;
+            marker.scale.y = marker.scale.x;
+            marker.scale.z = marker.scale.x;
+        });
+        
         renderer.render(scene, camera);
     }
     animate();
+}
+
+function addCityMarkers() {
+    majorCities.forEach(city => {
+        const pos = latLonToVector3(city.lat, city.lon, 5.3);
+        
+        // Create a small sphere as marker
+        const markerGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+        const markerMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xffcc00,
+            emissive: 0xff9900
+        });
+        const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+        marker.position.copy(pos);
+        marker.userData.cityName = city.name;
+        marker.userData.lat = city.lat;
+        marker.userData.lon = city.lon;
+        
+        cityMarkers.add(marker);
+    });
+}
+
+function updateCityWeatherMarkers() {
+    // Update city markers based on weather data
+    cityMarkers.children.forEach(marker => {
+        const cityName = marker.userData.cityName;
+        if (cityWeatherData[cityName]) {
+            const weatherCode = cityWeatherData[cityName].code;
+            const c = parseInt(weatherCode);
+            
+            // Change color based on weather
+            if (c === 113) {
+                marker.material.color.setHex(0xffff00); // Sunny - yellow
+            } else if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) {
+                marker.material.color.setHex(0x60a5fa); // Rain - blue
+            } else if ([227, 230, 323, 326, 329, 332, 335, 338].includes(c)) {
+                marker.material.color.setHex(0xffffff); // Snow - white
+            } else if ([386, 389].includes(c)) {
+                marker.material.color.setHex(0xa855f7); // Storm - purple
+            } else {
+                marker.material.color.setHex(0x4ade80); // Cloudy - green
+            }
+        }
+    });
 }
 
 globeBtn.onclick = () => {
@@ -233,7 +390,6 @@ function playWeatherSound(type) {
     const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const output = buffer.getChannelData(0);
 
-    // Simple noise generation for rain/wind
     for (let i = 0; i < bufferSize; i++) {
         output[i] = Math.random() * 2 - 1;
     }
@@ -253,7 +409,6 @@ function playWeatherSound(type) {
         filter.type = 'lowpass';
         filter.frequency.value = 200;
         gainNode.gain.value = 0.1;
-        // Add oscillation to wind
         const lfo = audioCtx.createOscillator();
         lfo.frequency.value = 0.5;
         const lfoGain = audioCtx.createGain();
@@ -290,7 +445,6 @@ soundToggle.addEventListener('click', () => {
     soundToggle.innerText = soundEnabled ? '🔊' : '🔇';
     if (!soundEnabled) stopSound();
     else {
-        // Re-trigger sound based on current weather
         const desc = descEl.innerText.toLowerCase();
         if (desc.includes('rain')) playWeatherSound('rain');
         else if (desc.includes('storm')) playWeatherSound('storm');
@@ -301,7 +455,6 @@ soundToggle.addEventListener('click', () => {
 async function fetchWeather(query = 'Moscow') {
     showLoading();
     try {
-        // query can be city name or "lat,lon"
         const response = await fetch(`https://wttr.in/${query}?format=j1`);
         if (!response.ok) throw new Error('Weather data not found');
         const data = await response.json();
@@ -356,7 +509,6 @@ function updateUI(data) {
     updateFlag(data);
     updateGlobeWeather(code);
     
-    // Update sounds
     const c = parseInt(code);
     if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) playWeatherSound('rain');
     else if ([386, 389].includes(c)) playWeatherSound('storm');
@@ -368,14 +520,12 @@ function updateGlobeWeather(code) {
     currentGlobeWeatherCode = code;
     if (!weatherGroup) return;
     
-    // Clear existing weather
     while(weatherGroup.children.length > 0) {
         weatherGroup.remove(weatherGroup.children[0]);
     }
     
     const c = parseInt(code);
     
-    // Clouds
     if (c !== 113) {
         const cloudCount = (c === 116) ? 5 : 15;
         for(let i=0; i<cloudCount; i++) {
@@ -389,104 +539,59 @@ function updateGlobeWeather(code) {
             
             cloud.position.set(
                 r * Math.sin(theta) * Math.cos(phi),
-                r * Math.sin(theta) * Math.sin(phi),
-                r * Math.cos(theta)
+                r * Math.cos(theta),
+                r * Math.sin(theta) * Math.sin(phi)
             );
-            cloud.lookAt(0,0,0);
+            
             weatherGroup.add(cloud);
         }
     }
     
-    // Rain
     if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) {
-        const rainCount = 200;
-        const rainGeo = new THREE.BufferGeometry();
-        const rainPos = new Float32Array(rainCount * 3);
-        for(let i=0; i<rainCount; i++) {
-            const r = 5.2 + Math.random() * 2;
+        for (let i = 0; i < 30; i++) {
+            const rainGeo = new THREE.BoxGeometry(0.05, 0.2, 0.05);
+            const rainMat = new THREE.MeshBasicMaterial({ color: 0x60a5fa });
+            const rain = new THREE.Mesh(rainGeo, rainMat);
+            
             const phi = Math.random() * Math.PI * 2;
             const theta = Math.random() * Math.PI;
-            rainPos[i*3] = r * Math.sin(theta) * Math.cos(phi);
-            rainPos[i*3+1] = r * Math.sin(theta) * Math.sin(phi);
-            rainPos[i*3+2] = r * Math.cos(theta);
+            const r = 5.5;
+            
+            rain.position.set(
+                r * Math.sin(theta) * Math.cos(phi),
+                r * Math.cos(theta),
+                r * Math.sin(theta) * Math.sin(phi)
+            );
+            
+            weatherGroup.add(rain);
         }
-        rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
-        const rainMat = new THREE.PointsMaterial({ color: 0x60a5fa, size: 0.05 });
-        const rainPoints = new THREE.Points(rainGeo, rainMat);
-        weatherGroup.add(rainPoints);
     }
     
-    // Snow
     if ([227, 230, 323, 326, 329, 332, 335, 338].includes(c)) {
-        const snowCount = 150;
-        const snowGeo = new THREE.BufferGeometry();
-        const snowPos = new Float32Array(snowCount * 3);
-        for(let i=0; i<snowCount; i++) {
-            const r = 5.2 + Math.random() * 2;
+        for (let i = 0; i < 25; i++) {
+            const snowGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+            const snowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const snow = new THREE.Mesh(snowGeo, snowMat);
+            
             const phi = Math.random() * Math.PI * 2;
             const theta = Math.random() * Math.PI;
-            snowPos[i*3] = r * Math.sin(theta) * Math.cos(phi);
-            snowPos[i*3+1] = r * Math.sin(theta) * Math.sin(phi);
-            snowPos[i*3+2] = r * Math.cos(theta);
+            const r = 5.5;
+            
+            snow.position.set(
+                r * Math.sin(theta) * Math.cos(phi),
+                r * Math.cos(theta),
+                r * Math.sin(theta) * Math.sin(phi)
+            );
+            
+            weatherGroup.add(snow);
         }
-        snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
-        const snowMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.07 });
-        const snowPoints = new THREE.Points(snowGeo, snowMat);
-        weatherGroup.add(snowPoints);
     }
-}
-
-function updateFlag(data) {
-    flagContainer.innerHTML = '';
-    // wttr.in doesn't always provide ISO code easily, but we can try to get it or use a fallback
-    // For the easter egg, we'll try to find the country and show its flag
-    const country = data.nearest_area[0].country[0].value;
-    
-    // Simple mapping for common countries
-    const countryMap = {
-        'Russia': 'ru', 'Russian Federation': 'ru',
-        'USA': 'us', 'United States of America': 'us',
-        'UK': 'gb', 'United Kingdom': 'gb',
-        'Germany': 'de', 'France': 'fr', 'Japan': 'jp',
-        'China': 'cn', 'Kazakhstan': 'kz', 'Ukraine': 'ua',
-        'Belarus': 'by', 'Uzbekistan': 'uz', 'Armenia': 'am',
-        'Georgia': 'ge', 'Azerbaijan': 'az', 'Kyrgyzstan': 'kg',
-        'Tajikistan': 'tj', 'Turkmenistan': 'tm', 'Moldova': 'md',
-        'Latvia': 'lv', 'Lithuania': 'lt', 'Estonia': 'ee',
-        'Poland': 'pl', 'Turkey': 'tr', 'Israel': 'il',
-        'Italy': 'it', 'Spain': 'es', 'Canada': 'ca', 'Brazil': 'br'
-    };
-    
-    let code = countryMap[country] || 'un'; // 'un' for unknown/United Nations
-    
-    const flagImg = document.createElement('img');
-    flagImg.src = `https://flagcdn.com/w80/${code.toLowerCase()}.png`;
-    flagImg.className = 'pixel-flag';
-    flagImg.alt = country;
-    flagImg.title = `Страна: ${country}`;
-    flagContainer.appendChild(flagImg);
 }
 
 function updateBackgroundAnimations(code, windSpeed) {
     bgAnimations.innerHTML = '';
-    const c = parseInt(code);
-
-    // Add Clouds
-    if (c !== 113) { // If not clear sky
-        const cloudCount = c === 116 ? 3 : 8;
-        for (let i = 0; i < cloudCount; i++) {
-            const cloud = document.createElement('div');
-            cloud.className = 'bg-cloud';
-            cloud.style.top = `${Math.random() * 60}%`;
-            cloud.style.animationDuration = `${15 + Math.random() * 20}s`;
-            cloud.style.animationDelay = `${-Math.random() * 20}s`;
-            cloud.style.opacity = 0.2 + Math.random() * 0.3;
-            bgAnimations.appendChild(cloud);
-        }
-    }
-
-    // Add Rain
-    if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) {
+    
+    if ([263, 266, 293, 296, 299, 302, 305, 308].includes(code)) {
         for (let i = 0; i < 50; i++) {
             const rain = document.createElement('div');
             rain.className = 'bg-rain';
@@ -497,8 +602,7 @@ function updateBackgroundAnimations(code, windSpeed) {
         }
     }
 
-    // Add Snow
-    if ([227, 230, 323, 326, 329, 332, 335, 338].includes(c)) {
+    if ([227, 230, 323, 326, 329, 332, 335, 338].includes(code)) {
         for (let i = 0; i < 40; i++) {
             const snow = document.createElement('div');
             snow.className = 'bg-snow';
@@ -509,14 +613,12 @@ function updateBackgroundAnimations(code, windSpeed) {
         }
     }
 
-    // Add Storm Flash
-    if ([386, 389].includes(c)) {
+    if ([386, 389].includes(code)) {
         const flash = document.createElement('div');
         flash.className = 'bg-flash';
         bgAnimations.appendChild(flash);
     }
 
-    // Add Wind
     if (windSpeed > 15) {
         const windCount = Math.min(Math.floor(windSpeed / 5), 15);
         for (let i = 0; i < windCount; i++) {
@@ -532,24 +634,21 @@ function updateBackgroundAnimations(code, windSpeed) {
 
 function setAnimation(code) {
     weatherIcon.innerHTML = '';
-    document.body.className = ''; // Clear previous classes
+    document.body.className = '';
     
     const c = parseInt(code);
 
     if (c === 113) {
-        // Sunny
         document.body.classList.add('bg-sunny');
         const sun = document.createElement('div');
         sun.className = 'sun';
         weatherIcon.appendChild(sun);
     } else if (c === 116 || c === 119 || c === 122) {
-        // Cloudy
         document.body.classList.add('bg-cloudy');
         const cloud = document.createElement('div');
         cloud.className = 'cloud';
         weatherIcon.appendChild(cloud);
     } else if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) {
-        // Rain
         document.body.classList.add('bg-rainy');
         const cloud = document.createElement('div');
         cloud.className = 'cloud';
@@ -562,7 +661,6 @@ function setAnimation(code) {
             weatherIcon.appendChild(drop);
         }
     } else if ([227, 230, 323, 326, 329, 332, 335, 338].includes(c)) {
-        // Snow
         document.body.classList.add('bg-snowy');
         const cloud = document.createElement('div');
         cloud.className = 'cloud';
@@ -575,7 +673,6 @@ function setAnimation(code) {
             weatherIcon.appendChild(flake);
         }
     } else if ([386, 389].includes(c)) {
-        // Storm
         document.body.classList.add('bg-stormy');
         const cloud = document.createElement('div');
         cloud.className = 'cloud';
@@ -584,12 +681,23 @@ function setAnimation(code) {
         bolt.className = 'lightning';
         weatherIcon.appendChild(bolt);
     } else {
-        // Default to cloud
         document.body.classList.add('bg-cloudy');
         const cloud = document.createElement('div');
         cloud.className = 'cloud';
         weatherIcon.appendChild(cloud);
     }
+}
+
+function updateFlag(data) {
+    flagContainer.innerHTML = '';
+    const countryCode = data.nearest_area[0].country[0].value;
+    const flagUrl = `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
+    
+    const flag = document.createElement('img');
+    flag.src = flagUrl;
+    flag.className = 'pixel-flag';
+    flag.onerror = () => flag.style.display = 'none';
+    flagContainer.appendChild(flag);
 }
 
 searchBtn.addEventListener('click', () => {
@@ -604,5 +712,4 @@ cityInput.addEventListener('keypress', (e) => {
     }
 });
 
-// Initial fetch with auto-location
 getLocation();
