@@ -118,16 +118,11 @@ const MAP_DATA = [
 ];
 
 function latLonToVector3(lat, lon, radius) {
-    // Convert lat/lon to Three.js coordinates
-    // Phi is polar angle (0 at North Pole, PI at South Pole)
-    // Theta is azimuthal angle (0 to 2PI)
     const phi = (90 - lat) * (Math.PI / 180);
     const theta = (lon + 180) * (Math.PI / 180);
-
     const x = -(radius * Math.sin(phi) * Math.cos(theta));
     const y = radius * Math.cos(phi);
     const z = radius * Math.sin(phi) * Math.sin(theta);
-
     return new THREE.Vector3(x, y, z);
 }
 
@@ -136,17 +131,11 @@ function createDetailedWorldTexture() {
     canvas.width = 512;
     canvas.height = 256;
     const ctx = canvas.getContext('2d');
-    
-    // Ocean background (Light blue from user image)
     ctx.fillStyle = '#87ceeb';
     ctx.fillRect(0, 0, 512, 256);
-    
-    // Land color (Green from user image)
     ctx.fillStyle = '#4ade80';
-    
     const pixelSizeW = 512 / 128;
     const pixelSizeH = 256 / 64;
-    
     MAP_DATA.forEach((row, y) => {
         for (let x = 0; x < row.length; x++) {
             if (row[x] === 'X') {
@@ -154,17 +143,10 @@ function createDetailedWorldTexture() {
             }
         }
     });
-    
-    // Add grid lines for reference (subtle)
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.lineWidth = 0.5;
-    for (let i = 0; i < 512; i += 32) {
-        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 256); ctx.stroke();
-    }
-    for (let i = 0; i < 256; i += 32) {
-        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(512, i); ctx.stroke();
-    }
-    
+    for (let i = 0; i < 512; i += 32) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 256); ctx.stroke(); }
+    for (let i = 0; i < 256; i += 32) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(512, i); ctx.stroke(); }
     const texture = new THREE.CanvasTexture(canvas);
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestFilter;
@@ -174,119 +156,72 @@ function createDetailedWorldTexture() {
 
 function initGlobe() {
     if (renderer) return;
-
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75, globeContainer.clientWidth / globeContainer.clientHeight, 0.1, 1000);
-    
-    // Use antialias: false for pixelated look
     renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
     renderer.setSize(globeContainer.clientWidth, globeContainer.clientHeight);
     renderer.setClearColor(0x000000, 0.1);
     globeContainer.appendChild(renderer.domElement);
-
     const texture = createDetailedWorldTexture();
-
     const geometry = new THREE.SphereGeometry(5, 64, 32);
-    const material = new THREE.MeshPhongMaterial({ 
-        map: texture,
-        emissive: 0x222222,
-        shininess: 0
-    });
-    
+    const material = new THREE.MeshPhongMaterial({ map: texture, emissive: 0x222222, shininess: 0 });
     globe = new THREE.Group();
-    
     const land = new THREE.Mesh(geometry, material);
     globe.add(land);
-    
-    // Add lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
-    
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
     directionalLight.position.set(5, 3, 5);
     scene.add(directionalLight);
-    
-    // Subtle wireframe shell
     const wireGeometry = new THREE.SphereGeometry(5.05, 24, 24);
-    const wireMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0xffffff, 
-        wireframe: true, 
-        transparent: true, 
-        opacity: 0.05 
-    });
+    const wireMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.05 });
     const shell = new THREE.Mesh(wireGeometry, wireMaterial);
     globe.add(shell);
-    
     weatherGroup = new THREE.Group();
     globe.add(weatherGroup);
-    
     cityMarkers = new THREE.Group();
     globe.add(cityMarkers);
-    
     scene.add(globe);
     addCityMarkers();
-    
-    if (currentGlobeWeatherCode) {
-        updateGlobeWeather(currentGlobeWeatherCode);
-    }
-
-    // Stars background
+    if (currentGlobeWeatherCode) updateGlobeWeather(currentGlobeWeatherCode);
     const particlesGeometry = new THREE.BufferGeometry();
     const particlesCount = 400;
     const posArray = new Float32Array(particlesCount * 3);
-    for(let i=0; i < particlesCount * 3; i++) {
-        posArray[i] = (Math.random() - 0.5) * 60;
-    }
+    for(let i=0; i < particlesCount * 3; i++) posArray[i] = (Math.random() - 0.5) * 60;
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
     const particlesMaterial = new THREE.PointsMaterial({ size: 0.1, color: 0xffffff });
     const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
     scene.add(particlesMesh);
-
     camera.position.z = 12;
     let currentZoom = 12;
     const minZoom = 6;
     const maxZoom = 18;
-
-    // Interaction
     let isDragging = false;
     let previousMousePosition = { x: 0, y: 0 };
     let velocityY = 0;
     let velocityX = 0;
     const rotationDamping = 0.95;
-
     globeContainer.addEventListener('mousedown', e => isDragging = true);
     window.addEventListener('mouseup', e => isDragging = false);
     globeContainer.addEventListener('mousemove', e => {
         if (isDragging) {
-            const deltaMove = {
-                x: e.offsetX - previousMousePosition.x,
-                y: e.offsetY - previousMousePosition.y
-            };
-            velocityY = deltaMove.x * 0.005;
-            velocityX = deltaMove.y * 0.005;
-            globe.rotation.y += velocityY;
-            globe.rotation.x += velocityX;
+            const deltaMove = { x: e.offsetX - previousMousePosition.x, y: e.offsetY - previousMousePosition.y };
+            velocityY = deltaMove.x * 0.005; velocityX = deltaMove.y * 0.005;
+            globe.rotation.y += velocityY; globe.rotation.x += velocityX;
         }
         previousMousePosition = { x: e.offsetX, y: e.offsetY };
     });
-
     globeContainer.addEventListener('wheel', (e) => {
         e.preventDefault();
         const zoomSpeed = 0.5;
-        if (e.deltaY > 0) {
-            currentZoom = Math.min(currentZoom + zoomSpeed, maxZoom);
-        } else {
-            currentZoom = Math.max(currentZoom - zoomSpeed, minZoom);
-        }
+        if (e.deltaY > 0) currentZoom = Math.min(currentZoom + zoomSpeed, maxZoom);
+        else currentZoom = Math.max(currentZoom - zoomSpeed, minZoom);
         camera.position.z = currentZoom;
     }, { passive: false });
-
     let lastDistance = 0;
     globeContainer.addEventListener('touchmove', (e) => {
         if (e.touches.length === 2) {
-            const touch1 = e.touches[0];
-            const touch2 = e.touches[1];
-            const distance = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+            const distance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
             if (lastDistance > 0) {
                 const zoomSpeed = 0.1;
                 if (distance > lastDistance) currentZoom = Math.max(currentZoom - zoomSpeed, minZoom);
@@ -296,41 +231,37 @@ function initGlobe() {
             lastDistance = distance;
         } else if (e.touches.length === 1 && isDragging) {
             const touch = e.touches[0];
-            const deltaMove = {
-                x: touch.clientX - previousMousePosition.x,
-                y: touch.clientY - previousMousePosition.y
-            };
-            globe.rotation.y += deltaMove.x * 0.005;
-            globe.rotation.x += deltaMove.y * 0.005;
+            const deltaMove = { x: touch.clientX - previousMousePosition.x, y: touch.clientY - previousMousePosition.y };
+            globe.rotation.y += deltaMove.x * 0.005; globe.rotation.x += deltaMove.y * 0.005;
             previousMousePosition = { x: touch.clientX, y: touch.clientY };
         }
     });
-    
     globeContainer.addEventListener('touchstart', e => {
         isDragging = true;
-        if (e.touches.length === 1) {
-            previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        }
+        if (e.touches.length === 1) previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     });
-    globeContainer.addEventListener('touchend', () => {
-        isDragging = false;
-        lastDistance = 0;
-    });
-
+    globeContainer.addEventListener('touchend', () => { isDragging = false; lastDistance = 0; });
     function animate() {
         requestAnimationFrame(animate);
         if (!isDragging) {
-            velocityY *= rotationDamping;
-            velocityX *= rotationDamping;
-            globe.rotation.y += velocityY + 0.001;
-            globe.rotation.x += velocityX;
+            velocityY *= rotationDamping; velocityX *= rotationDamping;
+            globe.rotation.y += velocityY + 0.001; globe.rotation.x += velocityX;
         }
-        
         cityMarkers.children.forEach((marker, index) => {
             const pulse = 1 + Math.sin(Date.now() * 0.005 + index) * 0.2;
             marker.scale.set(pulse, pulse, pulse);
         });
-        
+        // Weather animations
+        weatherGroup.children.forEach(child => {
+            if (child.userData.type === 'cloud') {
+                child.rotation.y += child.userData.speed;
+            } else if (child.userData.type === 'rain' || child.userData.type === 'snow') {
+                child.position.y -= child.userData.speed;
+                if (child.position.y < child.userData.startY - 1) child.position.y = child.userData.startY;
+            } else if (child.userData.type === 'lightning') {
+                child.material.opacity = Math.sin(Date.now() * 0.01) > 0.8 ? 1 : 0;
+            }
+        });
         renderer.render(scene, camera);
     }
     animate();
@@ -348,139 +279,43 @@ function addCityMarkers() {
     });
 }
 
-function updateCityWeatherMarkers() {
-    cityMarkers.children.forEach(marker => {
-        const cityName = marker.userData.cityName;
-        if (cityWeatherData[cityName]) {
-            const c = parseInt(cityWeatherData[cityName].code);
-            if (c === 113) marker.material.color.setHex(0xffff00);
-            else if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) marker.material.color.setHex(0x60a5fa);
-            else if ([227, 230, 323, 326, 329, 332, 335, 338].includes(c)) marker.material.color.setHex(0xffffff);
-            else if ([386, 389].includes(c)) marker.material.color.setHex(0xa855f7);
-            else marker.material.color.setHex(0x4ade80);
-        }
-    });
-}
-
-globeBtn.onclick = () => {
-    globeModal.style.display = "block";
-    setTimeout(initGlobe, 100);
-};
-
-closeModal.onclick = () => { globeModal.style.display = "none"; };
-window.onclick = (event) => { if (event.target == globeModal) globeModal.style.display = "none"; };
-
-// Sound Engine
-let audioCtx = null;
-let soundEnabled = false;
-let currentSound = null;
-
-function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-
-function playWeatherSound(type) {
-    if (!soundEnabled || !audioCtx) return;
-    stopSound();
-    const bufferSize = 2 * audioCtx.sampleRate;
-    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-    const output = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
-    const whiteNoise = audioCtx.createBufferSource();
-    whiteNoise.buffer = buffer;
-    whiteNoise.loop = true;
-    const filter = audioCtx.createBiquadFilter();
-    const gainNode = audioCtx.createGain();
-    if (type === 'rain') { filter.type = 'lowpass'; filter.frequency.value = 400; gainNode.gain.value = 0.15; }
-    else if (type === 'wind') { filter.type = 'lowpass'; filter.frequency.value = 200; gainNode.gain.value = 0.1; }
-    else if (type === 'storm') { filter.type = 'lowpass'; filter.frequency.value = 300; gainNode.gain.value = 0.2; }
-    whiteNoise.connect(filter); filter.connect(gainNode); gainNode.connect(audioCtx.destination);
-    whiteNoise.start();
-    currentSound = { source: whiteNoise, gain: gainNode };
-}
-
-function stopSound() { if (currentSound) { currentSound.source.stop(); currentSound = null; } }
-
-soundToggle.addEventListener('click', () => {
-    initAudio();
-    soundEnabled = !soundEnabled;
-    soundToggle.innerText = soundEnabled ? '🔊' : '🔇';
-    if (!soundEnabled) stopSound();
-    else {
-        const desc = descEl.innerText.toLowerCase();
-        if (desc.includes('rain')) playWeatherSound('rain');
-        else if (desc.includes('storm')) playWeatherSound('storm');
-        else playWeatherSound('wind');
-    }
-});
-
-async function fetchWeather(query = 'Moscow') {
-    showLoading();
-    try {
-        const response = await fetch(`https://wttr.in/${query}?format=j1`);
-        if (!response.ok) throw new Error('Weather data not found');
-        const data = await response.json();
-        updateUI(data);
-    } catch (error) {
-        cityEl.innerText = 'Ошибка';
-        descEl.innerText = 'Не удалось загрузить';
-    }
-}
-
-function showLoading() {
-    cityEl.innerText = 'Поиск...';
-    tempEl.innerText = '--°C';
-    descEl.innerText = 'Смотрим в небо';
-    weatherIcon.innerHTML = '<div class="cloud" style="animation: pulse 1s infinite"></div>';
-}
-
-function getLocation() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (position) => fetchWeather(`${position.coords.latitude.toFixed(2)},${position.coords.longitude.toFixed(2)}`),
-            () => fetchWeather('Moscow')
-        );
-    } else fetchWeather('Moscow');
-}
-
-function updateUI(data) {
-    const current = data.current_condition[0];
-    const city = data.nearest_area[0].areaName[0].value;
-    const temp = current.temp_C;
-    const desc = current.lang_ru ? current.lang_ru[0].value : current.weatherDesc[0].value;
-    const code = current.weatherCode;
-    const windSpeed = parseInt(current.windspeedKmph);
-
-    cityEl.innerText = city;
-    tempEl.innerText = `${temp}°C`;
-    descEl.innerText = desc;
-
-    setAnimation(code);
-    updateBackgroundAnimations(code, windSpeed);
-    updateFlag(data);
-    updateForecast(data);
-    updateGlobeWeather(code);
-    
-    const c = parseInt(code);
-    if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) playWeatherSound('rain');
-    else if ([386, 389].includes(c)) playWeatherSound('storm');
-    else if (windSpeed > 10) playWeatherSound('wind');
-    else stopSound();
-}
-
 function updateGlobeWeather(code) {
     currentGlobeWeatherCode = code;
     if (!weatherGroup) return;
     while(weatherGroup.children.length > 0) weatherGroup.remove(weatherGroup.children[0]);
     const c = parseInt(code);
+    
+    // Global clouds for non-sunny weather
     if (c !== 113) {
-        for(let i=0; i<15; i++) {
+        for(let i=0; i<20; i++) {
             const cloudGeo = new THREE.BoxGeometry(0.8, 0.4, 0.4);
-            const cloudMat = new THREE.MeshBasicMaterial({ color: 0xd1d5db, transparent: true, opacity: 0.6 });
+            const cloudMat = new THREE.MeshBasicMaterial({ color: 0xd1d5db, transparent: true, opacity: 0.5 });
+            const cloudContainer = new THREE.Group();
             const cloud = new THREE.Mesh(cloudGeo, cloudMat);
-            const phi = Math.random() * Math.PI * 2, theta = Math.random() * Math.PI, r = 5.5 + Math.random() * 0.5;
+            const phi = Math.random() * Math.PI * 2, theta = Math.random() * Math.PI, r = 5.6 + Math.random() * 0.3;
             cloud.position.set(r * Math.sin(theta) * Math.cos(phi), r * Math.cos(theta), r * Math.sin(theta) * Math.sin(phi));
-            weatherGroup.add(cloud);
+            cloudContainer.add(cloud);
+            cloudContainer.userData = { type: 'cloud', speed: (Math.random() - 0.5) * 0.002 };
+            weatherGroup.add(cloudContainer);
         }
     }
+
+    // Local effects near cities
+    majorCities.forEach(city => {
+        const pos = latLonToVector3(city.lat, city.lon, 5.5);
+        // We'd need per-city weather data here to be perfect, but let's add some variety
+        if (Math.random() > 0.7) {
+            // Local rain
+            for(let i=0; i<5; i++) {
+                const rainGeo = new THREE.BoxGeometry(0.05, 0.15, 0.05);
+                const rainMat = new THREE.MeshBasicMaterial({ color: 0x60a5fa, transparent: true, opacity: 0.8 });
+                const rain = new THREE.Mesh(rainGeo, rainMat);
+                rain.position.set(pos.x + (Math.random()-0.5)*0.5, pos.y + (Math.random()-0.5)*0.5, pos.z + (Math.random()-0.5)*0.5);
+                rain.userData = { type: 'rain', speed: 0.02, startY: rain.position.y };
+                weatherGroup.add(rain);
+            }
+        }
+    });
 }
 
 function updateBackgroundAnimations(code, windSpeed) {
@@ -561,6 +396,52 @@ function updateFlag(data) {
     const flag = document.createElement('img');
     flag.src = flagUrl; flag.className = 'pixel-flag'; flag.onerror = () => flag.style.display = 'none';
     flagContainer.appendChild(flag);
+}
+
+async function fetchWeather(query = 'Moscow') {
+    showLoading();
+    try {
+        const response = await fetch(`https://wttr.in/${query}?format=j1`);
+        if (!response.ok) throw new Error('Weather data not found');
+        const data = await response.json();
+        updateUI(data);
+    } catch (error) {
+        cityEl.innerText = 'Ошибка';
+        descEl.innerText = 'Не удалось загрузить';
+    }
+}
+
+function showLoading() {
+    cityEl.innerText = 'Поиск...';
+    tempEl.innerText = '--°C';
+    descEl.innerText = 'Смотрим в небо';
+    weatherIcon.innerHTML = '<div class="cloud" style="animation: pulse 1s infinite"></div>';
+}
+
+function getLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => fetchWeather(`${position.coords.latitude.toFixed(2)},${position.coords.longitude.toFixed(2)}`),
+            () => fetchWeather('Moscow')
+        );
+    } else fetchWeather('Moscow');
+}
+
+function updateUI(data) {
+    const current = data.current_condition[0];
+    const city = data.nearest_area[0].areaName[0].value;
+    const temp = current.temp_C;
+    const desc = current.lang_ru ? current.lang_ru[0].value : current.weatherDesc[0].value;
+    const code = current.weatherCode;
+    const windSpeed = parseInt(current.windspeedKmph);
+    cityEl.innerText = city;
+    tempEl.innerText = `${temp}°C`;
+    descEl.innerText = desc;
+    setAnimation(code);
+    updateBackgroundAnimations(code, windSpeed);
+    updateFlag(data);
+    updateForecast(data);
+    updateGlobeWeather(code);
 }
 
 searchBtn.onclick = () => { const city = cityInput.value.trim(); if (city) fetchWeather(city); };
