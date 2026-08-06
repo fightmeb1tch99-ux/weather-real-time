@@ -49,14 +49,85 @@ let scene, camera, renderer, globe, weatherGroup, cityMarkers;
 let currentGlobeWeatherCode = null;
 let cityWeatherData = {};
 
+// Pixel Map Data extracted from user image
+const MAP_DATA = [
+    "                                                                                                                                ",
+    "                                                                                                                                ",
+    "                                                                                                                                ",
+    "                                                                                                       XXXXXXXXXXXXXXXXX        ",
+    "                X X                                                                                    XXXXXXXXXXXXXXXXX        ",
+    "              X XXX                   XX                                                               XXXXXXXXXXXXXXXXXXXX     ",
+    "              XXXXX                   XX                                                               XXXXXXXXXXXXXXXXXXXX     ",
+    "              XXXX                                                                         XXXXXXXXXXX XXXXXXXXXXXXXXX          ",
+    "               X           XXX         X XX                                                XXXXXXXXXXX XXXXXXXXXXXXXXX          ",
+    "               XX          XXXX        XXXXXX                                              XXXXXXXXXXX     XXXXXXXXXXXX         ",
+    "                           X         XXXXXXX    X                                          XXXXXXXXXXX     XXXXXXXXXXXX         ",
+    "                           X   XX XXXXXXXXXXXX XX X XX                                     XXXXXXXXXXX     XXXXXXXXXXXX         ",
+    "                               XXXXXXXXXXXXXXXXXX   XXX                     XXXXXXXXXXXX                   XXXXXXXXXX           ",
+    "               XXXXXX           XXXXXXXXXXXXXXXXXXXXXXXXXXXX                 XXXXXXXXXXXX  XXXXXXXX          XXXXXXXX           ",
+    "               XXXXXXXXXX X  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX            XXXXXXXXXXXXXXXXXXXXXX         XXXXX              ",
+    "               XXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX           XXXXXXXXXXXXXXXXXXXXXXX         XXXXXX XXXX        ",
+    "              XXXXXXX   XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX        XXXXXXXXXXXXXXXXXXXXXXX          XXX    XXXX        ",
+    "              XXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX        XXXXXXXXXXXXXXXXXXXXX            XXX                ",
+    "              XX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX               XXXXXXXXXXXXXXXXXX    XXXXXX  XXX                ",
+    "              XX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                XXXXXXXXXXXXXXXXX   XXXXXXXX XXX                ",
+    "              XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                XXXXXXXXXXXXXXXXX  XXXXXXXXX XXX                ",
+    "              XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                 XXXXXXXXXXXXXXXX  XXXXXXXXX XX                 ",
+    "              XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                  XXXXXXXXXXXXXXXX  XXXXXXXXX XX                 ",
+    "               XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                  XXXXXXXXXXXXXXXX  XXXXXXXX  XX                 ",
+    "               XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                    XXXXXXXXXXXXXXX  XXXXXXX   X                  ",
+    "                XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                      XXXXXXXXXXXXXX  XXXXXXX                      ",
+    "                 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                        XXXXXXXXXXXXX  XXXXXXX                      ",
+    "                  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                        XXXXXXXXXXXXX   XXXXX                       ",
+    "                  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                          XXXXXXXXXXX    XXXX                        ",
+    "                   XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                          XXXXXXXXXXX     XX                         ",
+    "                   XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                            XXXXXXXXXX                                ",
+    "                    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                            XXXXXXXXXX                                ",
+    "                    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                              XXXXXXXXX                                ",
+    "                    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                              XXXXXXXXX                                ",
+    "                    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                              XXXXXXXXX                                ",
+    "                     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                               XXXXXXXX                                ",
+    "                     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                               XXXXXXX                                 ",
+    "                     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                XXXXXX                                 ",
+    "                      XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                XXXXXX                                 ",
+    "                      XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                 XXXXX                                 ",
+    "                      XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                 XXXXX                                 ",
+    "                      XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                   XXXX                                 ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                   XXXX                                 ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                    XXXX                                 ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                    XXXX                                 ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                          ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                          ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                          ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                           ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                           ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                           ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                           ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                            ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                            ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                            ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                             ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                             ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                             ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                             ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                              ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                              ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                              ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXXX                                                                              ",
+    "                       XXXXXXXXXXXXXXXXXXXXXXXXXX                                                                               ",
+];
+
 function latLonToVector3(lat, lon, radius) {
-    const phi = (90 - lat) * Math.PI / 180;
-    const theta = (lon + 180) * Math.PI / 180;
-    
+    // Convert lat/lon to Three.js coordinates
+    // Phi is polar angle (0 at North Pole, PI at South Pole)
+    // Theta is azimuthal angle (0 to 2PI)
+    const phi = (90 - lat) * (Math.PI / 180);
+    const theta = (lon + 180) * (Math.PI / 180);
+
     const x = -(radius * Math.sin(phi) * Math.cos(theta));
     const y = radius * Math.cos(phi);
     const z = radius * Math.sin(phi) * Math.sin(theta);
-    
+
     return new THREE.Vector3(x, y, z);
 }
 
@@ -66,59 +137,37 @@ function createDetailedWorldTexture() {
     canvas.height = 256;
     const ctx = canvas.getContext('2d');
     
-    // Ocean background
-    ctx.fillStyle = '#1a4d7a';
+    // Ocean background (Light blue from user image)
+    ctx.fillStyle = '#87ceeb';
     ctx.fillRect(0, 0, 512, 256);
     
-    // More detailed world map
-    const landColor = '#2d8659';
-    const coastColor = '#3da070';
+    // Land color (Green from user image)
+    ctx.fillStyle = '#4ade80';
     
-    ctx.fillStyle = landColor;
+    const pixelSizeW = 512 / 128;
+    const pixelSizeH = 256 / 64;
     
-    // North America
-    ctx.fillRect(40, 50, 80, 100);
-    ctx.fillRect(50, 140, 40, 30);
+    MAP_DATA.forEach((row, y) => {
+        for (let x = 0; x < row.length; x++) {
+            if (row[x] === 'X') {
+                ctx.fillRect(x * pixelSizeW, y * pixelSizeH, pixelSizeW, pixelSizeH);
+            }
+        }
+    });
     
-    // South America
-    ctx.fillRect(80, 140, 30, 80);
-    
-    // Europe
-    ctx.fillRect(200, 40, 60, 50);
-    
-    // Africa
-    ctx.fillRect(220, 90, 50, 100);
-    
-    // Asia
-    ctx.fillRect(280, 30, 150, 120);
-    
-    // Australia
-    ctx.fillRect(420, 150, 40, 50);
-    
-    // Greenland
-    ctx.fillRect(160, 10, 30, 40);
-    
-    // Add coastlines with lighter color
-    ctx.strokeStyle = coastColor;
-    ctx.lineWidth = 1;
-    
-    // Add grid lines for reference
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    // Add grid lines for reference (subtle)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.lineWidth = 0.5;
-    for (let i = 0; i < 512; i += 64) {
-        ctx.beginPath();
-        ctx.moveTo(i, 0);
-        ctx.lineTo(i, 256);
-        ctx.stroke();
+    for (let i = 0; i < 512; i += 32) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 256); ctx.stroke();
     }
-    for (let i = 0; i < 256; i += 64) {
-        ctx.beginPath();
-        ctx.moveTo(0, i);
-        ctx.lineTo(512, i);
-        ctx.stroke();
+    for (let i = 0; i < 256; i += 32) {
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(512, i); ctx.stroke();
     }
     
     const texture = new THREE.CanvasTexture(canvas);
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
     texture.needsUpdate = true;
     return texture;
 }
@@ -128,21 +177,20 @@ function initGlobe() {
 
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75, globeContainer.clientWidth / globeContainer.clientHeight, 0.1, 1000);
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    
+    // Use antialias: false for pixelated look
+    renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
     renderer.setSize(globeContainer.clientWidth, globeContainer.clientHeight);
     renderer.setClearColor(0x000000, 0.1);
     globeContainer.appendChild(renderer.domElement);
 
-    // Create globe with detailed map
     const texture = createDetailedWorldTexture();
-    texture.magFilter = THREE.LinearFilter;
-    texture.minFilter = THREE.LinearFilter;
 
-    const geometry = new THREE.SphereGeometry(5, 128, 64);
+    const geometry = new THREE.SphereGeometry(5, 64, 32);
     const material = new THREE.MeshPhongMaterial({ 
         map: texture,
-        emissive: 0x333333,
-        shininess: 5
+        emissive: 0x222222,
+        shininess: 0
     });
     
     globe = new THREE.Group();
@@ -151,48 +199,43 @@ function initGlobe() {
     globe.add(land);
     
     // Add lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
     
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
     directionalLight.position.set(5, 3, 5);
     scene.add(directionalLight);
     
-    // Add a subtle glowing wireframe shell
-    const wireGeometry = new THREE.SphereGeometry(5.15, 32, 32);
+    // Subtle wireframe shell
+    const wireGeometry = new THREE.SphereGeometry(5.05, 24, 24);
     const wireMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0x4ade80, 
+        color: 0xffffff, 
         wireframe: true, 
         transparent: true, 
-        opacity: 0.1 
+        opacity: 0.05 
     });
     const shell = new THREE.Mesh(wireGeometry, wireMaterial);
     globe.add(shell);
     
-    // Weather Group for particles
     weatherGroup = new THREE.Group();
     globe.add(weatherGroup);
     
-    // City markers group
     cityMarkers = new THREE.Group();
     globe.add(cityMarkers);
     
     scene.add(globe);
-    
-    // Add city markers
     addCityMarkers();
     
-    // Initial globe weather if data already exists
     if (currentGlobeWeatherCode) {
         updateGlobeWeather(currentGlobeWeatherCode);
     }
 
     // Stars background
     const particlesGeometry = new THREE.BufferGeometry();
-    const particlesCount = 300;
+    const particlesCount = 400;
     const posArray = new Float32Array(particlesCount * 3);
     for(let i=0; i < particlesCount * 3; i++) {
-        posArray[i] = (Math.random() - 0.5) * 50;
+        posArray[i] = (Math.random() - 0.5) * 60;
     }
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
     const particlesMaterial = new THREE.PointsMaterial({ size: 0.1, color: 0xffffff });
@@ -201,12 +244,15 @@ function initGlobe() {
 
     camera.position.z = 12;
     let currentZoom = 12;
-    const minZoom = 5;
-    const maxZoom = 20;
+    const minZoom = 6;
+    const maxZoom = 18;
 
     // Interaction
     let isDragging = false;
     let previousMousePosition = { x: 0, y: 0 };
+    let velocityY = 0;
+    let velocityX = 0;
+    const rotationDamping = 0.95;
 
     globeContainer.addEventListener('mousedown', e => isDragging = true);
     window.addEventListener('mouseup', e => isDragging = false);
@@ -216,15 +262,14 @@ function initGlobe() {
                 x: e.offsetX - previousMousePosition.x,
                 y: e.offsetY - previousMousePosition.y
             };
-            velocityY = deltaMove.x * 0.01;
-            velocityX = deltaMove.y * 0.01;
+            velocityY = deltaMove.x * 0.005;
+            velocityX = deltaMove.y * 0.005;
             globe.rotation.y += velocityY;
             globe.rotation.x += velocityX;
         }
         previousMousePosition = { x: e.offsetX, y: e.offsetY };
     });
 
-    // Zoom with mouse wheel
     globeContainer.addEventListener('wheel', (e) => {
         e.preventDefault();
         const zoomSpeed = 0.5;
@@ -236,75 +281,54 @@ function initGlobe() {
         camera.position.z = currentZoom;
     }, { passive: false });
 
-    // Pinch zoom for touch devices
     let lastDistance = 0;
     globeContainer.addEventListener('touchmove', (e) => {
         if (e.touches.length === 2) {
             const touch1 = e.touches[0];
             const touch2 = e.touches[1];
-            const distance = Math.hypot(
-                touch1.clientX - touch2.clientX,
-                touch1.clientY - touch2.clientY
-            );
-            
+            const distance = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
             if (lastDistance > 0) {
-                const zoomSpeed = 0.05;
-                if (distance > lastDistance) {
-                    currentZoom = Math.max(currentZoom - zoomSpeed, minZoom);
-                } else {
-                    currentZoom = Math.min(currentZoom + zoomSpeed, maxZoom);
-                }
+                const zoomSpeed = 0.1;
+                if (distance > lastDistance) currentZoom = Math.max(currentZoom - zoomSpeed, minZoom);
+                else currentZoom = Math.min(currentZoom + zoomSpeed, maxZoom);
                 camera.position.z = currentZoom;
             }
             lastDistance = distance;
-        }
-    });
-    
-    globeContainer.addEventListener('touchend', () => {
-        lastDistance = 0;
-    });
-
-    // Touch support
-    globeContainer.addEventListener('touchstart', e => isDragging = true);
-    window.addEventListener('touchend', e => isDragging = false);
-    globeContainer.addEventListener('touchmove', e => {
-        if (isDragging) {
+        } else if (e.touches.length === 1 && isDragging) {
             const touch = e.touches[0];
             const deltaMove = {
                 x: touch.clientX - previousMousePosition.x,
                 y: touch.clientY - previousMousePosition.y
             };
-            globe.rotation.y += deltaMove.x * 0.01;
-            globe.rotation.x += deltaMove.y * 0.01;
+            globe.rotation.y += deltaMove.x * 0.005;
+            globe.rotation.x += deltaMove.y * 0.005;
             previousMousePosition = { x: touch.clientX, y: touch.clientY };
         }
     });
-
-    let targetRotationY = 0;
-    let targetRotationX = 0;
-    const rotationDamping = 0.95;
-    let velocityY = 0;
-    let velocityX = 0;
+    
+    globeContainer.addEventListener('touchstart', e => {
+        isDragging = true;
+        if (e.touches.length === 1) {
+            previousMousePosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }
+    });
+    globeContainer.addEventListener('touchend', () => {
+        isDragging = false;
+        lastDistance = 0;
+    });
 
     function animate() {
         requestAnimationFrame(animate);
-        
         if (!isDragging) {
-            // Auto-rotate slowly
-            targetRotationY += 0.0003;
-            
-            // Smooth damping for inertia
             velocityY *= rotationDamping;
             velocityX *= rotationDamping;
-            
-            globe.rotation.y += velocityY + 0.0003;
+            globe.rotation.y += velocityY + 0.001;
+            globe.rotation.x += velocityX;
         }
         
-        // Update city marker glow
         cityMarkers.children.forEach((marker, index) => {
-            marker.scale.x = 1 + Math.sin(Date.now() * 0.003 + index) * 0.2;
-            marker.scale.y = marker.scale.x;
-            marker.scale.z = marker.scale.x;
+            const pulse = 1 + Math.sin(Date.now() * 0.005 + index) * 0.2;
+            marker.scale.set(pulse, pulse, pulse);
         });
         
         renderer.render(scene, camera);
@@ -314,44 +338,26 @@ function initGlobe() {
 
 function addCityMarkers() {
     majorCities.forEach(city => {
-        const pos = latLonToVector3(city.lat, city.lon, 5.3);
-        
-        // Create a small sphere as marker
-        const markerGeometry = new THREE.SphereGeometry(0.15, 16, 16);
-        const markerMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0xffcc00,
-            emissive: 0xff9900
-        });
+        const pos = latLonToVector3(city.lat, city.lon, 5.1);
+        const markerGeometry = new THREE.SphereGeometry(0.12, 8, 8);
+        const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
         const marker = new THREE.Mesh(markerGeometry, markerMaterial);
         marker.position.copy(pos);
         marker.userData.cityName = city.name;
-        marker.userData.lat = city.lat;
-        marker.userData.lon = city.lon;
-        
         cityMarkers.add(marker);
     });
 }
 
 function updateCityWeatherMarkers() {
-    // Update city markers based on weather data
     cityMarkers.children.forEach(marker => {
         const cityName = marker.userData.cityName;
         if (cityWeatherData[cityName]) {
-            const weatherCode = cityWeatherData[cityName].code;
-            const c = parseInt(weatherCode);
-            
-            // Change color based on weather
-            if (c === 113) {
-                marker.material.color.setHex(0xffff00); // Sunny - yellow
-            } else if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) {
-                marker.material.color.setHex(0x60a5fa); // Rain - blue
-            } else if ([227, 230, 323, 326, 329, 332, 335, 338].includes(c)) {
-                marker.material.color.setHex(0xffffff); // Snow - white
-            } else if ([386, 389].includes(c)) {
-                marker.material.color.setHex(0xa855f7); // Storm - purple
-            } else {
-                marker.material.color.setHex(0x4ade80); // Cloudy - green
-            }
+            const c = parseInt(cityWeatherData[cityName].code);
+            if (c === 113) marker.material.color.setHex(0xffff00);
+            else if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) marker.material.color.setHex(0x60a5fa);
+            else if ([227, 230, 323, 326, 329, 332, 335, 338].includes(c)) marker.material.color.setHex(0xffffff);
+            else if ([386, 389].includes(c)) marker.material.color.setHex(0xa855f7);
+            else marker.material.color.setHex(0x4ade80);
         }
     });
 }
@@ -361,84 +367,37 @@ globeBtn.onclick = () => {
     setTimeout(initGlobe, 100);
 };
 
-closeModal.onclick = () => {
-    globeModal.style.display = "none";
-};
-
-window.onclick = (event) => {
-    if (event.target == globeModal) {
-        globeModal.style.display = "none";
-    }
-};
+closeModal.onclick = () => { globeModal.style.display = "none"; };
+window.onclick = (event) => { if (event.target == globeModal) globeModal.style.display = "none"; };
 
 // Sound Engine
 let audioCtx = null;
 let soundEnabled = false;
 let currentSound = null;
 
-function initAudio() {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-}
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
 
 function playWeatherSound(type) {
     if (!soundEnabled || !audioCtx) return;
-    
     stopSound();
-    
     const bufferSize = 2 * audioCtx.sampleRate;
     const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const output = buffer.getChannelData(0);
-
-    for (let i = 0; i < bufferSize; i++) {
-        output[i] = Math.random() * 2 - 1;
-    }
-
+    for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
     const whiteNoise = audioCtx.createBufferSource();
     whiteNoise.buffer = buffer;
     whiteNoise.loop = true;
-
     const filter = audioCtx.createBiquadFilter();
     const gainNode = audioCtx.createGain();
-
-    if (type === 'rain') {
-        filter.type = 'lowpass';
-        filter.frequency.value = 400;
-        gainNode.gain.value = 0.15;
-    } else if (type === 'wind') {
-        filter.type = 'lowpass';
-        filter.frequency.value = 200;
-        gainNode.gain.value = 0.1;
-        const lfo = audioCtx.createOscillator();
-        lfo.frequency.value = 0.5;
-        const lfoGain = audioCtx.createGain();
-        lfoGain.gain.value = 0.05;
-        lfo.connect(lfoGain);
-        lfoGain.connect(gainNode.gain);
-        lfo.start();
-    } else if (type === 'storm') {
-        filter.type = 'lowpass';
-        filter.frequency.value = 300;
-        gainNode.gain.value = 0.2;
-    } else {
-        stopSound();
-        return;
-    }
-
-    whiteNoise.connect(filter);
-    filter.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
+    if (type === 'rain') { filter.type = 'lowpass'; filter.frequency.value = 400; gainNode.gain.value = 0.15; }
+    else if (type === 'wind') { filter.type = 'lowpass'; filter.frequency.value = 200; gainNode.gain.value = 0.1; }
+    else if (type === 'storm') { filter.type = 'lowpass'; filter.frequency.value = 300; gainNode.gain.value = 0.2; }
+    whiteNoise.connect(filter); filter.connect(gainNode); gainNode.connect(audioCtx.destination);
     whiteNoise.start();
     currentSound = { source: whiteNoise, gain: gainNode };
 }
 
-function stopSound() {
-    if (currentSound) {
-        currentSound.source.stop();
-        currentSound = null;
-    }
-}
+function stopSound() { if (currentSound) { currentSound.source.stop(); currentSound = null; } }
 
 soundToggle.addEventListener('click', () => {
     initAudio();
@@ -463,7 +422,6 @@ async function fetchWeather(query = 'Moscow') {
     } catch (error) {
         cityEl.innerText = 'Ошибка';
         descEl.innerText = 'Не удалось загрузить';
-        console.error(error);
     }
 }
 
@@ -477,25 +435,15 @@ function showLoading() {
 function getLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const lat = position.coords.latitude.toFixed(2);
-                const lon = position.coords.longitude.toFixed(2);
-                fetchWeather(`${lat},${lon}`);
-            },
-            (error) => {
-                console.warn("Geolocation failed, defaulting to Moscow", error);
-                fetchWeather('Moscow');
-            }
+            (position) => fetchWeather(`${position.coords.latitude.toFixed(2)},${position.coords.longitude.toFixed(2)}`),
+            () => fetchWeather('Moscow')
         );
-    } else {
-        fetchWeather('Moscow');
-    }
+    } else fetchWeather('Moscow');
 }
 
 function updateUI(data) {
     const current = data.current_condition[0];
     const city = data.nearest_area[0].areaName[0].value;
-    const country = data.nearest_area[0].country[0].value;
     const temp = current.temp_C;
     const desc = current.lang_ru ? current.lang_ru[0].value : current.weatherDesc[0].value;
     const code = current.weatherCode;
@@ -521,115 +469,39 @@ function updateUI(data) {
 function updateGlobeWeather(code) {
     currentGlobeWeatherCode = code;
     if (!weatherGroup) return;
-    
-    while(weatherGroup.children.length > 0) {
-        weatherGroup.remove(weatherGroup.children[0]);
-    }
-    
+    while(weatherGroup.children.length > 0) weatherGroup.remove(weatherGroup.children[0]);
     const c = parseInt(code);
-    
     if (c !== 113) {
-        const cloudCount = (c === 116) ? 5 : 15;
-        for(let i=0; i<cloudCount; i++) {
+        for(let i=0; i<15; i++) {
             const cloudGeo = new THREE.BoxGeometry(0.8, 0.4, 0.4);
             const cloudMat = new THREE.MeshBasicMaterial({ color: 0xd1d5db, transparent: true, opacity: 0.6 });
             const cloud = new THREE.Mesh(cloudGeo, cloudMat);
-            
-            const phi = Math.random() * Math.PI * 2;
-            const theta = Math.random() * Math.PI;
-            const r = 5.5 + Math.random() * 0.5;
-            
-            cloud.position.set(
-                r * Math.sin(theta) * Math.cos(phi),
-                r * Math.cos(theta),
-                r * Math.sin(theta) * Math.sin(phi)
-            );
-            
+            const phi = Math.random() * Math.PI * 2, theta = Math.random() * Math.PI, r = 5.5 + Math.random() * 0.5;
+            cloud.position.set(r * Math.sin(theta) * Math.cos(phi), r * Math.cos(theta), r * Math.sin(theta) * Math.sin(phi));
             weatherGroup.add(cloud);
-        }
-    }
-    
-    if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) {
-        for (let i = 0; i < 30; i++) {
-            const rainGeo = new THREE.BoxGeometry(0.05, 0.2, 0.05);
-            const rainMat = new THREE.MeshBasicMaterial({ color: 0x60a5fa });
-            const rain = new THREE.Mesh(rainGeo, rainMat);
-            
-            const phi = Math.random() * Math.PI * 2;
-            const theta = Math.random() * Math.PI;
-            const r = 5.5;
-            
-            rain.position.set(
-                r * Math.sin(theta) * Math.cos(phi),
-                r * Math.cos(theta),
-                r * Math.sin(theta) * Math.sin(phi)
-            );
-            
-            weatherGroup.add(rain);
-        }
-    }
-    
-    if ([227, 230, 323, 326, 329, 332, 335, 338].includes(c)) {
-        for (let i = 0; i < 25; i++) {
-            const snowGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-            const snowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            const snow = new THREE.Mesh(snowGeo, snowMat);
-            
-            const phi = Math.random() * Math.PI * 2;
-            const theta = Math.random() * Math.PI;
-            const r = 5.5;
-            
-            snow.position.set(
-                r * Math.sin(theta) * Math.cos(phi),
-                r * Math.cos(theta),
-                r * Math.sin(theta) * Math.sin(phi)
-            );
-            
-            weatherGroup.add(snow);
         }
     }
 }
 
 function updateBackgroundAnimations(code, windSpeed) {
     bgAnimations.innerHTML = '';
-    
-    if ([263, 266, 293, 296, 299, 302, 305, 308].includes(code)) {
+    const c = parseInt(code);
+    if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) {
         for (let i = 0; i < 50; i++) {
             const rain = document.createElement('div');
             rain.className = 'bg-rain';
             rain.style.left = `${Math.random() * 100}vw`;
             rain.style.animationDuration = `${0.5 + Math.random() * 0.5}s`;
-            rain.style.animationDelay = `${Math.random()}s`;
             bgAnimations.appendChild(rain);
         }
     }
-
-    if ([227, 230, 323, 326, 329, 332, 335, 338].includes(code)) {
+    if ([227, 230, 323, 326, 329, 332, 335, 338].includes(c)) {
         for (let i = 0; i < 40; i++) {
             const snow = document.createElement('div');
             snow.className = 'bg-snow';
             snow.style.left = `${Math.random() * 100}vw`;
             snow.style.animationDuration = `${2 + Math.random() * 3}s`;
-            snow.style.animationDelay = `${Math.random() * 2}s`;
             bgAnimations.appendChild(snow);
-        }
-    }
-
-    if ([386, 389].includes(code)) {
-        const flash = document.createElement('div');
-        flash.className = 'bg-flash';
-        bgAnimations.appendChild(flash);
-    }
-
-    if (windSpeed > 15) {
-        const windCount = Math.min(Math.floor(windSpeed / 5), 15);
-        for (let i = 0; i < windCount; i++) {
-            const wind = document.createElement('div');
-            wind.className = 'bg-wind';
-            wind.style.top = `${Math.random() * 100}vh`;
-            wind.style.animationDuration = `${1 + Math.random() * 2}s`;
-            wind.style.animationDelay = `${Math.random() * 2}s`;
-            bgAnimations.appendChild(wind);
         }
     }
 }
@@ -637,56 +509,19 @@ function updateBackgroundAnimations(code, windSpeed) {
 function setAnimation(code) {
     weatherIcon.innerHTML = '';
     document.body.className = '';
-    
     const c = parseInt(code);
-
     if (c === 113) {
         document.body.classList.add('bg-sunny');
-        const sun = document.createElement('div');
-        sun.className = 'sun';
-        weatherIcon.appendChild(sun);
-    } else if (c === 116 || c === 119 || c === 122) {
+        const sun = document.createElement('div'); sun.className = 'sun'; weatherIcon.appendChild(sun);
+    } else if ([116, 119, 122].includes(c)) {
         document.body.classList.add('bg-cloudy');
-        const cloud = document.createElement('div');
-        cloud.className = 'cloud';
-        weatherIcon.appendChild(cloud);
+        const cloud = document.createElement('div'); cloud.className = 'cloud'; weatherIcon.appendChild(cloud);
     } else if ([263, 266, 293, 296, 299, 302, 305, 308].includes(c)) {
         document.body.classList.add('bg-rainy');
-        const cloud = document.createElement('div');
-        cloud.className = 'cloud';
-        weatherIcon.appendChild(cloud);
-        for (let i = 0; i < 5; i++) {
-            const drop = document.createElement('div');
-            drop.className = 'rain-drop';
-            drop.style.left = `${10 + i * 10}px`;
-            drop.style.animationDelay = `${Math.random()}s`;
-            weatherIcon.appendChild(drop);
-        }
-    } else if ([227, 230, 323, 326, 329, 332, 335, 338].includes(c)) {
-        document.body.classList.add('bg-snowy');
-        const cloud = document.createElement('div');
-        cloud.className = 'cloud';
-        weatherIcon.appendChild(cloud);
-        for (let i = 0; i < 5; i++) {
-            const flake = document.createElement('div');
-            flake.className = 'snow-flake';
-            flake.style.left = `${10 + i * 10}px`;
-            flake.style.animationDelay = `${Math.random() * 2}s`;
-            weatherIcon.appendChild(flake);
-        }
-    } else if ([386, 389].includes(c)) {
-        document.body.classList.add('bg-stormy');
-        const cloud = document.createElement('div');
-        cloud.className = 'cloud';
-        weatherIcon.appendChild(cloud);
-        const bolt = document.createElement('div');
-        bolt.className = 'lightning';
-        weatherIcon.appendChild(bolt);
+        const cloud = document.createElement('div'); cloud.className = 'cloud'; weatherIcon.appendChild(cloud);
     } else {
         document.body.classList.add('bg-cloudy');
-        const cloud = document.createElement('div');
-        cloud.className = 'cloud';
-        weatherIcon.appendChild(cloud);
+        const cloud = document.createElement('div'); cloud.className = 'cloud'; weatherIcon.appendChild(cloud);
     }
 }
 
@@ -703,32 +538,18 @@ function getWeatherIcon(code) {
 function updateForecast(data) {
     forecastContainer.innerHTML = '';
     const forecast = data.weather;
-    
     if (!forecast) return;
-    
-    forecast.slice(0, 7).forEach((day, index) => {
+    forecast.slice(0, 7).forEach((day) => {
         const date = new Date(day.date);
-        const dayName = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'][date.getDay()];
-        const dayNum = date.getDate();
-        
-        const maxTemp = day.maxtempC;
-        const minTemp = day.mintempC;
-        const weatherCode = day.hourly[0].weatherCode;
-        const weatherDesc = day.hourly[0].weatherDesc[0].value;
-        
+        const dayName = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'][date.getDay()];
         const forecastDay = document.createElement('div');
         forecastDay.className = 'forecast-day';
-        
-        const icon = getWeatherIcon(weatherCode);
-        
         forecastDay.innerHTML = `
-            <div class="forecast-day-name">${dayName} ${dayNum}</div>
-            <div class="forecast-day-icon">${icon}</div>
-            <div class="forecast-day-temp">${Math.round(maxTemp)}°</div>
-            <div class="forecast-day-temp-min">${Math.round(minTemp)}°</div>
-            <div class="forecast-day-desc">${weatherDesc.substring(0, 15)}</div>
+            <div class="forecast-day-name">${dayName} ${date.getDate()}</div>
+            <div class="forecast-day-icon">${getWeatherIcon(day.hourly[0].weatherCode)}</div>
+            <div class="forecast-day-temp">${Math.round(day.maxtempC)}°</div>
+            <div class="forecast-day-temp-min">${Math.round(day.mintempC)}°</div>
         `;
-        
         forecastContainer.appendChild(forecastDay);
     });
 }
@@ -737,24 +558,12 @@ function updateFlag(data) {
     flagContainer.innerHTML = '';
     const countryCode = data.nearest_area[0].country[0].value;
     const flagUrl = `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
-    
     const flag = document.createElement('img');
-    flag.src = flagUrl;
-    flag.className = 'pixel-flag';
-    flag.onerror = () => flag.style.display = 'none';
+    flag.src = flagUrl; flag.className = 'pixel-flag'; flag.onerror = () => flag.style.display = 'none';
     flagContainer.appendChild(flag);
 }
 
-searchBtn.addEventListener('click', () => {
-    const city = cityInput.value.trim();
-    if (city) fetchWeather(city);
-});
-
-cityInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        const city = cityInput.value.trim();
-        if (city) fetchWeather(city);
-    }
-});
+searchBtn.onclick = () => { const city = cityInput.value.trim(); if (city) fetchWeather(city); };
+cityInput.onkeypress = (e) => { if (e.key === 'Enter') { const city = cityInput.value.trim(); if (city) fetchWeather(city); } };
 
 getLocation();

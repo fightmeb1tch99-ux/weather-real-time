@@ -139,9 +139,25 @@ body::before {
     box-shadow: 10px 10px 0px #000;
     text-align: center;
     width: 360px;
+    max-width: 95vw;
     max-height: 90vh;
     overflow-y: auto;
     image-rendering: pixelated;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) #333;
+}
+
+.widget-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.widget-container::-webkit-scrollbar-track {
+    background: #333;
+}
+
+.widget-container::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border: 2px solid #000;
 }
 
 .header-info {
