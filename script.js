@@ -371,19 +371,29 @@ function getWeatherIcon(code) {
 }
 
 function updateForecast(data) {
+    if (!forecastContainer) return;
     forecastContainer.innerHTML = '';
     const forecast = data.weather;
     if (!forecast) return;
+    
+    const isRussian = data.current_condition[0].lang_ru ? true : false;
+    
     forecast.slice(0, 7).forEach((day) => {
         const date = new Date(day.date);
         const dayName = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'][date.getDay()];
         const forecastDay = document.createElement('div');
         forecastDay.className = 'forecast-day';
+        
+        const weather = day.hourly[4] || day.hourly[0]; 
+        const code = weather.weatherCode;
+        const desc = isRussian ? (weather.lang_ru ? weather.lang_ru[0].value : weather.weatherDesc[0].value) : weather.weatherDesc[0].value;
+        
         forecastDay.innerHTML = `
             <div class="forecast-day-name">${dayName} ${date.getDate()}</div>
-            <div class="forecast-day-icon">${getWeatherIcon(day.hourly[0].weatherCode)}</div>
-            <div class="forecast-day-temp">${Math.round(day.maxtempC)}°</div>
+            <div class="forecast-day-icon">${getWeatherIcon(code)}</div>
+            <div class="forecast-day-temp-max">${Math.round(day.maxtempC)}°</div>
             <div class="forecast-day-temp-min">${Math.round(day.mintempC)}°</div>
+            <div class="forecast-day-desc">${desc}</div>
         `;
         forecastContainer.appendChild(forecastDay);
     });
